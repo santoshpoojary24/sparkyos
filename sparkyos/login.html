@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sparky OS | System Authorization</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-deep: #020408;
+            --glass-bg: rgba(10, 15, 30, 0.7);
+            --glass-border: rgba(59, 130, 246, 0.3);
+            --text-main: #eef5ff;
+            --text-muted: #a0b3d9;
+            --accent-glow: #3b82f6;
+            --accent-secondary: #a855f7;
+            --accent-pink: #ec489a;
+            --bg-gradient: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
+                           radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 40%);
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            background-image: var(--bg-gradient);
+            font-family: 'Inter', sans-serif;
+            height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .mouse-orb {
+            position: fixed; width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0) 70%);
+            border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(50px);
+            transition: transform 0.1s ease-out; will-change: transform;
+        }
+
+        .login-container {
+            position: relative; z-index: 10; background: var(--glass-bg);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 24px;
+            padding: 45px 36px 30px; width: 100%; max-width: 420px; text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            animation: floatIn 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .shake { animation: shake 0.4s ease-in-out; border-color: var(--accent-pink) !important; }
+
+        @keyframes floatIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        .back-link {
+            position: absolute; top: 20px; left: 24px; color: var(--text-muted);
+            text-decoration: none; font-family: 'Orbitron', sans-serif; font-size: 0.65rem;
+            letter-spacing: 1px; display: flex; align-items: center; gap: 6px;
+            transition: 0.3s; opacity: 0.7;
+        }
+        .back-link:hover { color: var(--accent-glow); opacity: 1; }
+
+        .logo-main {
+            font-family: 'Orbitron', sans-serif; font-size: 2.2rem; font-weight: 800; letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--accent-glow), var(--accent-secondary));
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+        }
+
+        .logo-sub {
+            font-size: 0.75rem; font-weight: 600; color: var(--accent-pink); letter-spacing: 3px;
+            text-transform: uppercase; background: rgba(236, 72, 154, 0.1);
+            display: inline-block; padding: 6px 16px; border-radius: 40px;
+            border: 1px solid rgba(236, 72, 154, 0.3); margin: 12px 0 32px;
+        }
+
+        .input-group { margin-bottom: 24px; text-align: left; }
+        label { display: block; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; letter-spacing: 1px; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; }
+
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; transition: 0.3s; }
+
+        input {
+            width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--glass-border);
+            border-radius: 12px; padding: 14px 16px 14px 44px; color: var(--text-main);
+            font-size: 16px; font-family: 'Inter', sans-serif; outline: none; transition: all 0.3s;
+        }
+        input:focus { border-color: var(--accent-glow); box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); background: rgba(0, 0, 0, 0.5); }
+
+        button {
+            width: 100%; background: rgba(59, 130, 246, 0.1); border: 1px solid var(--accent-glow);
+            border-radius: 12px; padding: 16px; font-family: 'Orbitron', sans-serif;
+            font-weight: 700; letter-spacing: 2px; color: var(--accent-glow);
+            font-size: 0.9rem; cursor: pointer; transition: all 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        button:hover { background: var(--accent-glow); color: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4); }
+
+        /* --- FEATURE: CONTACT FOOTER --- */
+        .contact-gate {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px dashed rgba(59, 130, 246, 0.2);
+            text-align: left;
+        }
+        .contact-gate p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+        .contact-links {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--accent-glow);
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-family: 'Orbitron', sans-serif;
+            transition: 0.2s;
+        }
+        .contact-item:hover {
+            color: #fff;
+            transform: translateX(5px);
+        }
+        .contact-item i { width: 16px; text-align: center; }
+
+        .sync-bar-container {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 4px;
+            background: rgba(255, 255, 255, 0.05); border-radius: 0 0 24px 24px; overflow: hidden;
+            display: none;
+        }
+        .sync-bar-fill { height: 100%; width: 0%; background: var(--accent-glow); box-shadow: 0 0 10px var(--accent-glow); }
+
+        .error { color: var(--accent-pink); font-size: 0.8rem; margin-top: 16px; font-family: 'Orbitron'; min-height: 20px; }
+
+        @media (max-width: 480px) {
+            .login-container { width: 92%; padding: 40px 24px 24px; }
+            .logo-main { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mouse-orb" id="mouseOrb"></div>
+
+    <div class="login-container" id="loginBox">
+        <a href="in.html" class="back-link"><i class="fa-solid fa-lock"></i> LOCK</a>
+
+        <div class="logo-main"><i class="fa-solid fa-atom"></i> SPARKY</div>
+        <div class="logo-sub" id="scrambleText">OS AUTHORIZATION</div>
+        
+        <form id="loginForm">
+            <div class="input-group">
+                <label>System ID</label>
+                <div class="input-wrapper">
+                    <input type="text" id="username" placeholder="Enter Identity" required autofocus autocomplete="off">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>Security Key</label>
+                <div class="input-wrapper">
+                    <input type="password" id="password" placeholder="••••••••" required>
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+            </div>
+            
+            <button type="submit" id="submitBtn"><i class="fa-solid fa-right-to-bracket"></i> INITIALIZE LINK</button>
+            <div id="errorMsg" class="error"></div>
+        </form>
+
+        <div class="contact-gate">
+            <p>Access restricted. If you do not have authorized credentials, contact system administration:</p>
+            <div class="contact-links">
+                <a href="https://www.instagram.com/xxiv.sparky?igsh=MXRteGR2enZ4bHhqcw%3D%3D&utm_source=qr" class="contact-item" target="_blank">
+                    <i class="fa-brands fa-instagram"></i> @xxiv.sparky
+                </a>
+                <a href="mailto:santoshpoojary2004@gmail.com" class="contact-item">
+                    <i class="fa-solid fa-envelope"></i> santoshpoojary2004@gmail.com
+                </a>
+            </div>
+        </div>
+
+        <div class="sync-bar-container" id="syncBarContainer">
+            <div class="sync-bar-fill" id="syncBarFill"></div>
+        </div>
+    </div>
+
+    <script>
+        // Mouse Orb
+        const orb = document.getElementById('mouseOrb');
+        const updateOrb = (e) => {
+            const x = e.clientX || (e.touches && e.touches[0].clientX);
+            const y = e.clientY || (e.touches && e.touches[0].clientY);
+            if(x && y) orb.style.transform = `translate(${x - 200}px, ${y - 200}px)`;
+        };
+        document.addEventListener('mousemove', updateOrb);
+        document.addEventListener('touchmove', updateOrb);
+
+        // Text Scramble
+        const scramble = (element, finalWord) => {
+            const chars = '!<>-_\\/[]{}—=+*^?#________';
+            let iteration = 0;
+            const interval = setInterval(() => {
+                element.innerText = finalWord.split("").map((letter, index) => {
+                    if(index < iteration) return finalWord[index];
+                    return chars[Math.floor(Math.random() * chars.length)];
+                }).join("");
+                if(iteration >= finalWord.length) clearInterval(interval);
+                iteration += 1 / 3;
+            }, 30);
+        };
+        window.onload = () => scramble(document.getElementById('scrambleText'), "OS AUTHORIZATION");
+
+        // Login Logic
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loginBox = document.getElementById('loginBox');
+            const submitBtn = document.getElementById('submitBtn');
+            const errorDiv = document.getElementById('errorMsg');
+            const syncBar = document.getElementById('syncBarContainer');
+            const syncFill = document.getElementById('syncBarFill');
+
+            loginBox.classList.remove('shake');
+            errorDiv.textContent = '';
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> SYNCING...';
+            
+            syncBar.style.display = 'block';
+            syncFill.style.transition = 'width 1.5s ease-in-out';
+            setTimeout(() => syncFill.style.width = '100%', 10);
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: document.getElementById('username').value.trim(), 
+                        password: document.getElementById('password').value 
+                    }),
+                    credentials: 'include'
+                });
+
+                if (res.ok) {
+                    submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> SYNC COMPLETE';
+                    submitBtn.style.background = '#4ade80';
+                    setTimeout(() => window.location.href = '/', 600);
+                } else {
+                    setTimeout(() => {
+                        loginBox.classList.add('shake');
+                        errorDiv.innerHTML = `ACCESS DENIED`;
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> INITIALIZE LINK';
+                        syncFill.style.width = '0%';
+                    }, 1000);
+                }
+            } catch (err) {
+                errorDiv.innerHTML = 'NODE OFFLINE';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> INITIALIZE LINK';
+            }
+        });
+    </script>
+</body>
+</html>
