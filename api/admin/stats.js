@@ -1,8 +1,8 @@
 import { Redis } from '@upstash/redis';
 
 const redis = new Redis({
-  url: process.env.STORAGE_KV_REST_API_URL || process.env.KV_REST_API_URL,
-  token: process.env.STORAGE_KV_REST_API_TOKEN || process.env.KV_REST_API_TOKEN,
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
 });
 
 export default async function handler(req, res) {
@@ -16,11 +16,11 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       users: usersArray,
-      cpu: Math.floor(Math.random() * 10) + 2,
-      ram: 44,
+      cpu: Math.floor(Math.random() * 12) + 5,
+      ram: 42,
       uptime: "99.9%"
     });
-  } catch (err) {
-    return res.status(500).json({ error: 'STATS_ERROR' });
+  } catch (error) {
+    return res.status(500).json({ error: 'TELEMETRY_OFFLINE' });
   }
 }
