@@ -1,42 +1,32 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis'
+
+const redis = new Redis({
+  url: process.env.STORAGE_KV_REST_API_URL,
+  token: process.env.STORAGE_KV_REST_API_TOKEN,
+})
 
 export default async function handler(req, res) {
-    // Vercel extracts the username from the URL automatically
     const { username } = req.query;
 
     try {
         if (req.method === 'DELETE') {
-            // Delete the user from the database
-            await kv.hdel('sparky_users', username);
+            await redis.hdel('sparky_users', username);
             return res.status(200).json({ success: true });
         } 
         
-        else if (req.method === 'PUT') {
-            // Edit the user's role or password
+        if (req.method === 'PUT') {
             const { password, role } = req.body;
+            const current = await redis.hget('sparky_users', username);
             
-            // Get their current data first
-            const currentUserData = await kv.hget('sparky_users', username);
-            if (!currentUserData) {
-                return res.status(404).json({ error: "User not found" });
-            }
-
-            // Update with new data
-            const updatedData = {
-                password: password || currentUserData.password, // Keep old password if blank
-                role: role,
-                status: currentUserData.status
-            };
-
-            await kv.hset('sparky_users', { [username]: updatedData });
+            await redis.hset('sparky_users', {
+                [username]: { 
+                    password: password || current.password, 
+                    role: role 
+                }
+            });
             return res.status(200).json({ success: true });
         }
-
-        // If it's not a DELETE or PUT request
-        return res.status(405).json({ error: 'Method Not Allowed' });
-
     } catch (error) {
-        console.error("Database Error:", error);
-        return res.status(500).json({ error: "Database operation failed" });
+        res.status(500).json({ error: "Operation failed" });
     }
 }
