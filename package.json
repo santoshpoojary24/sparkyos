@@ -1,11 +1,10 @@
 {
-  "name": "sparky-os-backend",
-  "version": "1.0.0",
-  "description": "Sparky OS Neural Link Backend",
-  "main": "api/user.js",
+  "name": "sparky-os-neural-backend",
+  "version": "2.0.0",
+  "private": true,
   "dependencies": {
-    "express": "^4.18.2",
-    "@upstash/redis": "latest"
+    "@upstash/redis": "^1.28.4",
+    "express": "^4.18.2"
   },
   "engines": {
     "node": ">=18.x"
