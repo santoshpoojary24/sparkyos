@@ -1,32 +1,25 @@
-import { kv } from '@vercel/kv';
-process.env.KV_URL = process.env.STORAGE_KV_URL;
-process.env.KV_REST_API_URL = process.env.STORAGE_KV_REST_API_URL;
-process.env.KV_REST_API_TOKEN = process.env.STORAGE_KV_REST_API_TOKEN;
+import { Redis } from '@upstash/redis'
+
+const redis = new Redis({
+  url: process.env.STORAGE_KV_REST_API_URL,
+  token: process.env.STORAGE_KV_REST_API_TOKEN,
+})
+
 export default async function handler(req, res) {
-    // Only allow POST requests (Adding a user)
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method Not Allowed' });
-    }
+    if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
     const { username, password, role } = req.body;
 
     try {
-        // 1. Check if the user already exists in the database
-        const existingUser = await kv.hget('sparky_users', username);
-        if (existingUser) {
-            return res.status(400).json({ error: "User already exists!" });
-        }
+        const exists = await redis.hexists('sparky_users', username);
+        if (exists) return res.status(400).json({ error: "User already exists" });
 
-        // 2. Save the new user to Upstash KV
-        await kv.hset('sparky_users', {
-            [username]: { password: password, role: role, status: 'Active' }
+        await redis.hset('sparky_users', {
+            [username]: { password, role }
         });
 
-        // 3. Tell the frontend the save was successful
-        return res.status(200).json({ success: true });
-
+        res.status(200).json({ success: true });
     } catch (error) {
-        console.error("Database Error:", error);
-        return res.status(500).json({ error: "Failed to connect to cloud database" });
+        res.status(500).json({ error: "Injection failed" });
     }
 }
