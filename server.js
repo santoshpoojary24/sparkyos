@@ -1,10 +1,8 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
 const os = require('os');
 const path = require('path');
-const mongoose = require('mongoose');
 
 const app = express();
 
@@ -28,42 +26,28 @@ app.use(session({
     }
 }));
 
-// ========== DATABASE CONNECTION (MONGODB) ==========
-const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/sparkyos';
-
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('Neural Link Database: CONNECTED'))
-    .catch(err => console.error('Database Connection Failed:', err));
-
-// --- Schemas ---
-const UserSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { type: String, default: 'user' }
-});
-const User = mongoose.model('User', UserSchema);
-
-const LogSchema = new mongoose.Schema({
-    time: String,
-    type: String,
-    ip: String,
-    details: String,
-    createdAt: { type: Date, default: Date.now, expires: 604800 } // Auto-delete logs after 7 days
-});
-const Log = mongoose.model('Log', LogSchema);
-
-// Initial DB Seed (Creates root admin if database is empty)
-User.findOne({ username: 'admin' }).then(admin => {
-    if (!admin) User.create({ username: 'admin', password: 'sparky123', role: 'admin' });
-});
-
 
 // ========== SYSTEM STATE (In-Memory) ==========
+// NOTE: On Vercel, this data will reset when the serverless function sleeps.
+
 let NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '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';
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 let isMaintenanceMode = false;
+
+// Default Users Array
+let users = [
+    { username: 'admin', password: 'sparky123', role: 'admin' },
+    { username: 'user',  password: 'user123',   role: 'user' }
+];
+
 let stats = { totalConversations: 0, totalMessages: 0 };
 const sessionActivity = new Map();
+
+// Default Security Logs Array
+let securityLogs = [
+    { time: new Date().toLocaleTimeString(), type: 'System Boot', ip: 'localhost', details: 'Sparky OS Core Initialized (No DB Mode).' }
+];
+
 
 // ========== REAL-TIME CPU CALCULATOR ==========
 let currentCpuLoad = 0;
@@ -87,10 +71,9 @@ setInterval(() => {
 
 
 // ========== HELPER FUNCTIONS ==========
-async function addLog(logType, ip, details) {
-    try {
-        await Log.create({ time: new Date().toLocaleTimeString(), type: logType, ip, details });
-    } catch (err) { console.error("Log failed:", err); }
+function addLog(type, ip, details) {
+    securityLogs.unshift({ time: new Date().toLocaleTimeString(), type, ip, details });
+    if (securityLogs.length > 20) securityLogs.pop(); // Keep only the last 20 logs
 }
 
 function formatUptime(seconds) {
@@ -106,28 +89,23 @@ function updateActiveSession(sessionId) {
 
 
 // ========== AUTH ENDPOINTS ==========
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
+    const user = users.find(u => u.username === username);
     
-    try {
-        const user = await User.findOne({ username });
-        
-        if (user && user.password === password) {
-            if (isMaintenanceMode && user.role !== 'admin') {
-                addLog('Auth Blocked', req.ip || 'unknown', `User '${username}' blocked by Maintenance Mode.`);
-                return res.status(403).json({ error: 'SYSTEM IN MAINTENANCE. ADMIN ACCESS ONLY.' });
-            }
-
-            req.session.user = { username, role: user.role };
-            addLog('Auth Success', req.ip || 'unknown', `User '${username}' logged into system.`);
-            return res.json({ success: true, role: user.role });
+    if (user && user.password === password) {
+        if (isMaintenanceMode && user.role !== 'admin') {
+            addLog('Auth Blocked', req.ip || 'unknown', `User '${username}' blocked by Maintenance Mode.`);
+            return res.status(403).json({ error: 'SYSTEM IN MAINTENANCE. ADMIN ACCESS ONLY.' });
         }
-        
-        addLog('Auth Failed', req.ip || 'unknown', `Failed login attempt for ID: '${username}'.`);
-        res.status(401).json({ error: 'Invalid credentials' });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error' });
+
+        req.session.user = { username, role: user.role };
+        addLog('Auth Success', req.ip || 'unknown', `User '${username}' logged into system.`);
+        return res.json({ success: true, role: user.role });
     }
+    
+    addLog('Auth Failed', req.ip || 'unknown', `Failed login attempt for ID: '${username}'.`);
+    res.status(401).json({ error: 'Invalid credentials' });
 });
 
 app.get('/api/check-auth', (req, res) => {
@@ -188,6 +166,7 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+
 // ========== REAL ADMIN ENDPOINTS ==========
 const requireAdmin = (req, res, next) => {
     if (!req.session.user || req.session.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden. Root access required.' });
@@ -201,61 +180,49 @@ app.post('/api/admin/maintenance', requireAdmin, (req, res) => {
     res.json({ success: true, maintenanceMode: isMaintenanceMode });
 });
 
-app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+app.get('/api/admin/stats', requireAdmin, (req, res) => {
     const totalRam = os.totalmem(); const freeRam = os.freemem();
     const ramPercent = Math.round(((totalRam - freeRam) / totalRam) * 100);
 
-    try {
-        const dbUsers = await User.find({}, '-password');
-        const dbLogs = await Log.find().sort({ createdAt: -1 }).limit(20);
-
-        res.json({
-            cpu: currentCpuLoad, ram: ramPercent, uptime: formatUptime(process.uptime()),
-            totalConversations: stats.totalConversations, totalMessages: stats.totalMessages,
-            activeSessions: sessionActivity.size, maintenanceMode: isMaintenanceMode,
-            logs: dbLogs, users: dbUsers
-        });
-    } catch (err) { res.status(500).json({ error: "Failed to fetch stats" }); }
+    res.json({
+        cpu: currentCpuLoad, ram: ramPercent, uptime: formatUptime(process.uptime()),
+        totalConversations: stats.totalConversations, totalMessages: stats.totalMessages,
+        activeSessions: sessionActivity.size, maintenanceMode: isMaintenanceMode,
+        logs: securityLogs, 
+        users: users.map(u => ({ username: u.username, role: u.role })) // Hide passwords from frontend
+    });
 });
 
-app.post('/api/admin/user', requireAdmin, async (req, res) => {
+app.post('/api/admin/user', requireAdmin, (req, res) => {
     const { username, password, role } = req.body;
-    try {
-        const existing = await User.findOne({ username });
-        if (existing) return res.status(400).json({ error: 'Identity already exists.' });
+    if (users.find(u => u.username === username)) return res.status(400).json({ error: 'Identity already exists.' });
 
-        await User.create({ username, password, role });
-        addLog('User Created', req.ip, `Admin generated new identity: '${username}'.`);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: 'Database error' }); }
+    users.push({ username, password, role });
+    addLog('User Created', req.ip, `Admin generated new identity: '${username}'.`);
+    res.json({ success: true });
 });
 
-app.put('/api/admin/user/:username', requireAdmin, async (req, res) => {
+app.put('/api/admin/user/:username', requireAdmin, (req, res) => {
     const { username } = req.params; const { password, role } = req.body;
     if (username === 'admin' && role !== 'admin') return res.status(400).json({ error: 'Cannot demote root.' });
     
-    try {
-        const user = await User.findOne({ username });
-        if (!user) return res.status(404).json({ error: 'User not found.' });
+    let user = users.find(u => u.username === username);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
 
-        if (password) user.password = password;
-        if (role) user.role = role;
-        await user.save();
-        
-        addLog('User Updated', req.ip, `Admin modified identity: '${username}'.`);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: 'Database error' }); }
+    if (password) user.password = password;
+    if (role) user.role = role;
+    
+    addLog('User Updated', req.ip, `Admin modified identity: '${username}'.`);
+    res.json({ success: true });
 });
 
-app.delete('/api/admin/user/:username', requireAdmin, async (req, res) => {
+app.delete('/api/admin/user/:username', requireAdmin, (req, res) => {
     const { username } = req.params;
     if (username === 'admin') return res.status(400).json({ error: 'Cannot delete root.' });
     
-    try {
-        await User.deleteOne({ username });
-        addLog('User Deleted', req.ip, `Admin erased identity: '${username}'.`);
-        res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: 'Database error' }); }
+    users = users.filter(u => u.username !== username);
+    addLog('User Deleted', req.ip, `Admin erased identity: '${username}'.`);
+    res.json({ success: true });
 });
 
 app.post('/api/admin/apikey', requireAdmin, (req, res) => {
@@ -274,7 +241,7 @@ app.post('/api/admin/reboot', requireAdmin, (req, res) => {
 
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => console.log(`🚀 Sparky DB Node running on http://localhost:${PORT}`));
+    app.listen(PORT, () => console.log(`🚀 Sparky Core running in Memory Mode on http://localhost:${PORT}`));
 }
 
 module.exports = app;
