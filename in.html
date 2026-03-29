@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sparky OS | Secure Gateway</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #3b82f6;
+            --accent: #a855f7;
+            --neon-pink: #ec489a;
+            --bg-dark: #020408;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #eef5ff;
+            font-family: 'Inter', sans-serif;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            perspective: 1000px;
+            transition: opacity 0.6s ease-out; /* Smooth exit transition */
+        }
+        
+        body.fade-out {
+            opacity: 0;
+        }
+
+        /* --- FLOWMOTION LIQUID BACKGROUND --- */
+        .bg-layer {
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle at center, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 20% 30%, rgba(168, 85, 247, 0.1) 0%, transparent 40%),
+                        radial-gradient(circle at 80% 70%, rgba(236, 72, 154, 0.1) 0%, transparent 40%);
+            z-index: -1;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* --- ENTRANCE ANIMATIONS --- */
+        @keyframes floatUpFade {
+            0% { opacity: 0; transform: translateY(40px) scale(0.95); filter: blur(10px); }
+            100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+
+        .parallax-wrapper {
+            text-align: center;
+            transition: transform 0.1s ease-out;
+            z-index: 10;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(2.2rem, 8vw, 4rem);
+            font-weight: 900;
+            letter-spacing: 5px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.5));
+            opacity: 0; /* Starts hidden for animation */
+            animation: floatUpFade 1s cubic-bezier(0.2, 0.9, 0.4, 1.1) 0.1s forwards;
+        }
+
+        .subtitle {
+            font-size: clamp(0.7rem, 3vw, 0.9rem);
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            margin-bottom: 60px;
+            opacity: 0; /* Starts hidden for animation */
+            animation: floatUpFade 1s cubic-bezier(0.2, 0.9, 0.4, 1.1) 0.3s forwards;
+        }
+
+        /* --- BIOMETRIC HOLD BUTTON --- */
+        .auth-container {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+            height: 80px;
+            opacity: 0; /* Starts hidden for animation */
+            animation: floatUpFade 1s cubic-bezier(0.2, 0.9, 0.4, 1.1) 0.5s forwards;
+        }
+
+        .hold-btn {
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            color: var(--primary);
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(0.85rem, 4vw, 1rem);
+            font-weight: 700;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1), background 0.3s, border-color 0.3s, color 0.3s;
+            backdrop-filter: blur(10px);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; /* Critical for mobile hold event */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            will-change: transform;
+        }
+
+        /* Tactile Squeeze Effect when pressed */
+        .hold-btn.pressing {
+            transform: scale(0.94);
+            box-shadow: inset 0 0 20px rgba(236, 72, 154, 0.2), 0 5px 15px rgba(0,0,0,0.6);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        /* The Scanning Laser Fill */
+        .scan-fill {
+            position: absolute;
+            left: 0; top: 0; height: 100%; width: 0%;
+            background: linear-gradient(90deg, transparent, rgba(236, 72, 154, 0.4), var(--neon-pink));
+            box-shadow: 2px 0 15px var(--neon-pink);
+            transition: width 0.1s linear;
+            pointer-events: none;
+        }
+
+        .hold-btn i { font-size: 1.3rem; transition: 0.3s; }
+
+        /* Status colors */
+        .hold-btn.scanning { border-color: var(--neon-pink); color: #fff; }
+        .hold-btn.success { background: var(--primary); color: #fff; border-color: #fff; transform: scale(1.05); box-shadow: 0 0 40px rgba(59, 130, 246, 0.6); }
+
+        .hint-text {
+            margin-top: 20px;
+            font-size: 0.7rem;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: opacity 0.3s;
+        }
+
+        .hold-btn.pressing ~ .hint-text {
+            opacity: 0.3;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="bg-layer" id="bgLayer"></div>
+
+    <div class="parallax-wrapper" id="contentWrapper">
+        <div class="logo">SPARKY OS</div>
+        <div class="subtitle">Neural Link Interface</div>
+
+        <div class="auth-container">
+            <button class="hold-btn" id="holdBtn">
+                <div class="scan-fill" id="scanFill"></div>
+                <i class="fa-solid fa-fingerprint" id="authIcon"></i>
+                <span id="btnText">HOLD TO AUTHORIZE</span>
+            </button>
+            <div class="hint-text" id="hintText">Biometric Scan Required</div>
+        </div>
+    </div>
+
+    <script>
+        const bgLayer = document.getElementById('bgLayer');
+        const contentWrapper = document.getElementById('contentWrapper');
+        const holdBtn = document.getElementById('holdBtn');
+        const scanFill = document.getElementById('scanFill');
+        const btnText = document.getElementById('btnText');
+        const authIcon = document.getElementById('authIcon');
+
+        // ------------------------- GYROSCOPE PARALLAX -------------------------
+        function initGyro() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => { if (response == 'granted') window.addEventListener('deviceorientation', handleOrientation); })
+                    .catch(console.error);
+            } else {
+                window.addEventListener('deviceorientation', handleOrientation);
+            }
+        }
+
+        function handleOrientation(event) {
+            const x = event.gamma ? event.gamma / 20 : 0; 
+            const y = event.beta ? event.beta / 20 : 0;
+            bgLayer.style.transform = `translate(${x * 15}px, ${y * 15}px)`;
+            contentWrapper.style.transform = `rotateY(${x * 10}deg) rotateX(${-y * 10}deg)`;
+        }
+
+        document.body.addEventListener('touchstart', initGyro, { once: true });
+
+        // Mouse Parallax Fallback for Desktop
+        document.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth - 0.5) * 20;
+            const y = (e.clientY / window.innerHeight - 0.5) * 20;
+            bgLayer.style.transform = `translate(${x * -1}px, ${y * -1}px)`;
+            contentWrapper.style.transform = `rotateY(${x}deg) rotateX(${-y}deg)`;
+        });
+
+        // ------------------------- HOLD TO SCAN LOGIC -------------------------
+        let holdTimer;
+        let progress = 0;
+        const holdDuration = 1500; // 1.5 seconds
+
+        function startScan(e) {
+            if(e.type === 'touchstart') e.preventDefault(); // Prevent text selection/magnifier on mobile
+            
+            holdBtn.classList.add('scanning', 'pressing');
+            btnText.innerText = "SCANNING...";
+            authIcon.className = "fa-solid fa-compact-disc fa-spin";
+            
+            const startTime = Date.now();
+            holdTimer = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                progress = (elapsed / holdDuration) * 100;
+                
+                if (progress >= 100) {
+                    completeScan();
+                } else {
+                    scanFill.style.width = progress + "%";
+                }
+            }, 20);
+        }
+
+        function cancelScan() {
+            clearInterval(holdTimer);
+            holdBtn.classList.remove('pressing'); // Remove tactile squeeze
+            
+            if (progress < 100) {
+                holdBtn.classList.remove('scanning');
+                scanFill.style.width = "0%";
+                btnText.innerText = "HOLD TO AUTHORIZE";
+                authIcon.className = "fa-solid fa-fingerprint";
+                progress = 0;
+            }
+        }
+
+        function completeScan() {
+            clearInterval(holdTimer);
+            holdBtn.classList.remove('scanning', 'pressing');
+            holdBtn.classList.add('success');
+            scanFill.style.width = "100%";
+            btnText.innerText = "ACCESS GRANTED";
+            authIcon.className = "fa-solid fa-check-double";
+            
+            // Trigger haptic feedback if available
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+            // Cinematic fade out before redirect
+            setTimeout(() => {
+                document.body.classList.add('fade-out');
+                setTimeout(() => {
+                    window.location.href = '/login.html';
+                }, 600); // Matches CSS transition duration
+            }, 600);
+        }
+
+        // Event Listeners for both Desktop and Mobile
+        holdBtn.addEventListener('mousedown', startScan);
+        holdBtn.addEventListener('mouseup', cancelScan);
+        holdBtn.addEventListener('mouseleave', cancelScan);
+        
+        holdBtn.addEventListener('touchstart', startScan);
+        holdBtn.addEventListener('touchend', cancelScan);
+        holdBtn.addEventListener('touchcancel', cancelScan);
+
+    </script>
+</body>
+</html>

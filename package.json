@@ -1,0 +1,17 @@
+{
+  "name": "sparky-os-backend",
+  "version": "1.0.0",
+  "description": "Sparky OS Neural Link Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
