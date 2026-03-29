@@ -1,7 +1,7 @@
 import { kv } from '@vercel/kv';
 
 export default async function handler(req, res) {
-    // We only want to process POST requests for adding a user
+    // Only allow POST requests (Adding a user)
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
@@ -9,18 +9,18 @@ export default async function handler(req, res) {
     const { username, password, role } = req.body;
 
     try {
-        // 1. Check if the user already exists in your Upstash Cloud DB
+        // 1. Check if the user already exists in the database
         const existingUser = await kv.hget('sparky_users', username);
         if (existingUser) {
             return res.status(400).json({ error: "User already exists!" });
         }
 
-        // 2. Save the new user permanently to the cloud
+        // 2. Save the new user to Upstash KV
         await kv.hset('sparky_users', {
             [username]: { password: password, role: role, status: 'Active' }
         });
 
-        // 3. Tell the frontend it was a success
+        // 3. Tell the frontend the save was successful
         return res.status(200).json({ success: true });
 
     } catch (error) {
