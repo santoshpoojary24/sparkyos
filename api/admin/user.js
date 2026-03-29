@@ -1,25 +1,21 @@
-import { Redis } from '@upstash/redis'
+import { Redis } from '@upstash/redis';
 
 const redis = new Redis({
   url: process.env.STORAGE_KV_REST_API_URL,
   token: process.env.STORAGE_KV_REST_API_TOKEN,
-})
+});
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  const { username, password, role } = req.body;
 
-    const { username, password, role } = req.body;
+  try {
+    const exists = await redis.hexists('sparky_users', username);
+    if (exists) return res.status(400).json({ error: 'IDENTITY ALREADY REGISTERED' });
 
-    try {
-        const exists = await redis.hexists('sparky_users', username);
-        if (exists) return res.status(400).json({ error: "User already exists" });
-
-        await redis.hset('sparky_users', {
-            [username]: { password, role }
-        });
-
-        res.status(200).json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: "Injection failed" });
-    }
+    await redis.hset('sparky_users', { [username]: { password, role } });
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ error: 'DB WRITE ERROR' });
+  }
 }
