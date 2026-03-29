@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sparky OS | Admin Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            /* Dark Mode Variables */
+            --primary: #3b82f6; 
+            --accent: #a855f7; 
+            --neon-pink: #ec489a;
+            --glass: rgba(15, 25, 45, 0.75); 
+            --border: rgba(59, 130, 246, 0.3);
+            --bg: #020408; 
+            --text-main: #eef5ff;
+            --text-muted: #a0b3d9;
+            --success: #4ade80; 
+            --warning: #fbbf24; 
+            --danger: #ef4444;
+            --bg-gradient: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
+                           radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+            --chart-text: #eef5ff;
+            --modal-bg: var(--glass);
+            --accent-glow: #00f0ff;
+            --accent-pink: #ff0055;
+            --glass-border-glow: rgba(0, 240, 255, 0.3);
+            --blur-intensity: blur(25px);
+            --shadow-float: 0 15px 35px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,240,255,0.05);
+        }
+
+        [data-theme="aurora"] {
+            /* Light Mode Variables */
+            --glass: rgba(255, 255, 255, 0.85);
+            --border: rgba(100, 100, 255, 0.3);
+            --bg: #f0f4fa;
+            --text-main: #1e293b;
+            --text-muted: #475569;
+            --bg-gradient: radial-gradient(circle at 20% 30%, #e0e7ff, #cbd5e1);
+            --chart-text: #1e293b;
+            --modal-bg: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background-color: var(--bg);
+            background-image: var(--bg-gradient),
+                linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
+            background-size: auto, 40px 40px, 40px 40px;
+            font-family: 'Inter', sans-serif; 
+            color: var(--text-main); 
+            height: 100dvh; 
+            display: flex; 
+            overflow: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
+            cursor: crosshair;
+        }
+
+        button, .nav-item, .action-icon { touch-action: manipulation; }
+
+        /* --- SCI-FI GLITTER CANVAS BACKGROUND --- */
+        #sciFiCanvas {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 0; pointer-events: none; opacity: 0.7;
+        }
+
+        /* --- ROBO CAT CANVAS --- */
+        #roboCatCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; 
+            pointer-events: none; opacity: 0.5;
+        }
+
+        .anti-gravity-app { display: flex; width: 100%; height: 100%; position: relative; z-index: 10; }
+
+        /* SIDEBAR & OVERLAY */
+        .sidebar { 
+            width: 260px; flex-shrink: 0; background: rgba(10, 15, 30, 0.8); backdrop-filter: blur(20px); 
+            border-right: 1px solid var(--border); padding: 2rem 1.5rem; display: flex; flex-direction: column; gap: 2rem; z-index: 100; transition: transform 0.3s ease;
+        }
+        
+        [data-theme="aurora"] .sidebar { background: rgba(255, 255, 255, 0.85); }
+        [data-theme="aurora"] .nav-item { color: var(--text-muted); }
+        [data-theme="aurora"] .nav-item:hover { color: var(--text-main); }
+        [data-theme="aurora"] .nav-item.active { color: var(--primary); }
+
+        .sidebar-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); z-index: 90; opacity: 0; transition: opacity 0.3s ease;
+        }
+
+        .logo { font-family: 'Orbitron'; font-size: 1.5rem; font-weight: 700; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap: 10px; }
+        .nav-links { display: flex; flex-direction: column; gap: 8px; }
+        .nav-item { padding: 1rem; border-radius: 12px; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 12px; color: #a0b3d9; font-size: 0.9rem; border: 1px solid transparent; }
+        @media(hover:hover) { .nav-item:hover { background: rgba(59, 130, 246, 0.05); color: #fff; } }
+        .nav-item.active { background: rgba(59, 130, 246, 0.1); color: var(--primary); border-color: var(--border); box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.1); }
+
+        .main-content { flex: 1; padding: 2rem; overflow-y: auto; position: relative; min-width: 0; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .mobile-menu-btn { display: none; background: transparent; border: 1px solid var(--border); color: var(--text-main); font-size: 1.2rem; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+        .header h2 { font-family: 'Orbitron'; font-size: 1.8rem; letter-spacing: 2px; text-transform: uppercase; }
+        
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .theme-btn { background: var(--glass); border: 1px solid var(--border); color: var(--text-main); padding: 10px 14px; border-radius: 12px; cursor: pointer; transition: 0.3s; }
+        .digital-clock { font-family: 'Orbitron'; font-size: 1.2rem; color: var(--primary); text-shadow: 0 0 10px var(--primary); }
+
+        .tab-section { display: none; animation: fadeIn 0.4s ease forwards; }
+        .tab-section.active-section { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 24px; padding: 1.5rem; transition: 0.4s; }
+        @media(hover:hover){ .stat-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 10px 20px rgba(0,0,0,0.1); } }
+        .stat-number { font-size: 2.2rem; font-weight: 800; color: var(--text-main); font-family: 'Orbitron'; margin: 0.5rem 0; }
+        .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+        .grid-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+        .panel { background: var(--glass); border: 1px solid var(--border); border-radius: 24px; padding: 1.5rem; overflow: hidden;}
+        .panel-title { margin-bottom: 1.5rem; font-family: 'Orbitron'; font-size: 1.1rem; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+
+        .table-responsive { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
+        .cyber-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 500px; }
+        .cyber-table th { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); color: var(--text-muted); font-family: 'Orbitron'; font-size: 0.8rem; letter-spacing: 1px; }
+        .cyber-table td { padding: 12px; border-bottom: 1px solid var(--border); color: var(--text-main); }
+        
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; border: 1px solid transparent; }
+        .badge.admin { background: rgba(168, 85, 247, 0.1); color: var(--accent); border-color: var(--accent); }
+        .badge.user { background: rgba(59, 130, 246, 0.1); color: var(--primary); border-color: var(--primary); }
+        
+        .action-icon { cursor: pointer; color: var(--primary); transition: 0.2s; padding: 10px; margin-right: 4px; font-size: 1.1rem; border-radius: 8px;}
+        @media(hover:hover){ .action-icon:hover { color: var(--text-main); transform: scale(1.1); background: rgba(59, 130, 246, 0.1); } }
+        .action-icon.del { color: var(--danger); }
+        @media(hover:hover){ .action-icon.del:hover { color: var(--danger); background: rgba(239, 68, 68, 0.1); } }
+
+        .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;}
+        .setting-info h4 { font-size: 0.95rem; margin-bottom: 4px; color: var(--text-main); }
+        .setting-info p { font-size: 0.8rem; color: var(--text-muted); }
+        
+        .metric-block { margin-bottom: 20px; }
+        .metric-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem; font-family: 'Orbitron'; color: var(--text-main);}
+        .progress-bg { width: 100%; height: 8px; background: rgba(128,128,128,0.2); border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary); border-radius: 10px; box-shadow: 0 0 10px var(--primary); transition: width 0.5s ease; }
+        .progress-fill.warn { background: var(--warning); box-shadow: 0 0 10px var(--warning); }
+        .progress-fill.danger { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+        
+        .btn { padding: 0.8rem 1.5rem; border-radius: 12px; cursor: pointer; font-weight: 600; transition: 0.3s; border: 1px solid transparent; font-family: 'Orbitron'; font-size: 0.8rem; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+        .btn-outline { background: transparent; border: 1px solid var(--neon-pink); color: var(--neon-pink); }
+        @media(hover:hover){ .btn:hover:not(:disabled) { transform: scale(1.05); filter: brightness(1.2); } }
+        .btn:active:not(:disabled) { transform: scale(0.95); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .status-pill { display: inline-flex; align-items: center; gap: 6px; background: rgba(74, 222, 128, 0.1); color: var(--success); padding: 6px 16px; border-radius: 20px; font-size: 0.8rem; border: 1px solid var(--success); font-family: 'Orbitron'; transition: 0.3s; }
+        .status-pill.rebooting { background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: var(--danger); }
+        .pulse { width: 8px; height: 8px; background: var(--success); border-radius: 50%; animation: pulse-green 2s infinite; }
+        .status-pill.rebooting .pulse { background: var(--danger); animation: pulse-red 1s infinite; }
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        /* --- CYBER UI ELEMENTS (SWITCH & RANGE) --- */
+        .cyber-switch { position: relative; display: inline-block; width: 50px; height: 26px; flex-shrink: 0; }
+        .cyber-switch input { opacity: 0; width: 0; height: 0; }
+        .switch-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.05); border: 1px solid var(--border); transition: .4s; border-radius: 34px; }
+        .switch-slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: var(--text-muted); transition: .4s; border-radius: 50%; }
+        .cyber-switch input:checked + .switch-slider { background-color: rgba(59, 130, 246, 0.2); border-color: var(--primary); }
+        .cyber-switch input:checked + .switch-slider:before { transform: translateX(24px); background-color: var(--primary); box-shadow: 0 0 10px var(--primary); }
+
+        .cyber-range { -webkit-appearance: none; width: 100%; background: transparent; }
+        .cyber-range::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--primary); cursor: pointer; margin-top: -6px; box-shadow: 0 0 15px var(--primary); transition: 0.2s; }
+        .cyber-range::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        .cyber-range::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(59,130,246,0.2); border-radius: 2px; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: 0.3s; padding: 1rem; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-box { background: var(--modal-bg); border: 1px solid var(--primary); border-radius: 24px; padding: 2rem; width: 100%; max-width: 400px; transform: translateY(20px) scale(0.95); transition: 0.4s; box-shadow: 0 20px 50px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto;}
+        .modal-overlay.active .modal-box { transform: translateY(0) scale(1); }
+        .form-group { margin-bottom: 1.2rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.8rem; color: var(--text-muted); font-family: 'Orbitron'; letter-spacing: 1px;}
+        .form-group input, .form-group select, .form-group textarea { width: 100%; background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 12px; border-radius: 12px; outline: none; font-family: 'Inter'; transition: 0.2s; font-size: 16px;} 
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(59,130,246,0.3); }
+        .form-group select option { background: var(--bg); color: var(--text-main); }
+
+        .toast-container { position: fixed; bottom: 30px; right: 30px; left: 30px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; z-index: 2000; pointer-events: none;}
+        @media(max-width: 768px) { .toast-container { align-items: center; bottom: 20px; right: 10px; left: 10px; } }
+        .toast { background: var(--glass); border-left: 4px solid var(--primary); padding: 16px 24px; border-radius: 8px; font-size: 0.9rem; color: var(--text-main); display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: slideInRight 0.4s forwards, fadeOut 0.4s 3s forwards; font-family: 'Orbitron'; backdrop-filter: blur(10px); width: fit-content; max-width: 100%; pointer-events: auto;}
+        .toast.success { border-color: var(--success); }
+        .toast.warning { border-color: var(--warning); }
+        .toast.error { border-color: var(--danger); }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+
+        .log-box { font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .log-entry { color: var(--success); border-left: 2px solid var(--success); padding-left: 8px; }
+
+        /* ============================================================
+           ALL ANIMATIONS PORTED FROM INDEX.HTML
+        ============================================================ */
+        @keyframes holoIn {
+            from { opacity: 0; transform: translateY(40px) scale(0.9) perspective(600px) rotateX(-15deg); filter: blur(8px); }
+            to   { opacity: 1; transform: translateY(0)    scale(1)   perspective(600px) rotateX(0deg);   filter: blur(0); }
+        }
+        .stat-card { animation: holoIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
+        .stat-card:nth-child(1) { animation-delay: 0.05s; }
+        .stat-card:nth-child(2) { animation-delay: 0.15s; }
+        .stat-card:nth-child(3) { animation-delay: 0.25s; }
+        .stat-card:nth-child(4) { animation-delay: 0.35s; }
+        .panel { animation: holoIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.1s both; }
+
+        @keyframes shimmerWipe {
+            0%   { background-position: -200% 0; }
+            100% { background-position:  200% 0; }
+        }
+        .btn-primary {
+            position: relative; overflow: hidden;
+            background-image: linear-gradient(120deg, transparent 20%, rgba(255,255,255,0.35) 50%, transparent 80%);
+            background-size: 200% 100%; background-repeat: no-repeat;
+        }
+        @media (hover: hover) {
+            .btn-primary:hover:not(:disabled) { animation: shimmerWipe 1.5s infinite linear; transform: translateY(-2px); box-shadow: 0 5px 20px rgba(59,130,246,0.6); }
+        }
+
+        @keyframes neonPulse {
+            0%   { box-shadow: 0 0 10px rgba(0,240,255,0.4); }
+            50%  { box-shadow: 0 0 25px rgba(0,240,255,0.8), 0 0 10px #fff; }
+            100% { box-shadow: 0 0 10px rgba(0,240,255,0.4); }
+        }
+        .status-pill { animation: neonPulse 3s infinite; }
+
+        @keyframes glitch-anim-1 {
+            0%   { clip-path: inset(20% 0 80% 0); transform: translate(-2px,  1px); }
+            20%  { clip-path: inset(60% 0 10% 0); transform: translate( 2px, -1px); }
+            40%  { clip-path: inset(40% 0 50% 0); transform: translate(-2px,  2px); }
+            60%  { clip-path: inset(80% 0  5% 0); transform: translate( 2px, -2px); }
+            80%  { clip-path: inset(10% 0 70% 0); transform: translate(-1px,  1px); }
+            100% { clip-path: inset(30% 0 40% 0); transform: translate( 1px, -1px); }
+        }
+        @keyframes glitch-anim-2 {
+            0%   { clip-path: inset(10% 0 60% 0); transform: translate( 2px, -1px); }
+            20%  { clip-path: inset(30% 0 20% 0); transform: translate(-2px,  1px); }
+            40%  { clip-path: inset(70% 0 10% 0); transform: translate( 2px,  2px); }
+            60%  { clip-path: inset(20% 0 50% 0); transform: translate(-2px, -2px); }
+            80%  { clip-path: inset(50% 0 30% 0); transform: translate( 1px,  1px); }
+            100% { clip-path: inset( 5% 0 80% 0); transform: translate(-1px, -1px); }
+        }
+        .logo {
+            position: relative; letter-spacing: 4px;
+            filter: drop-shadow(0 0 8px rgba(59,130,246,0.5));
+        }
+        .logo::before, .logo::after {
+            content: attr(data-text); position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; overflow: hidden; pointer-events: none;
+            background: transparent;
+        }
+        @media (hover: hover) {
+            .logo:hover::before { left: 3px; text-shadow: -3px 0 var(--accent-pink); color: #fff; -webkit-text-fill-color: #fff; animation: glitch-anim-1 1s infinite linear alternate-reverse; }
+            .logo:hover::after  { left: -3px; text-shadow: 3px 0 var(--accent-glow); color: #fff; -webkit-text-fill-color: #fff; animation: glitch-anim-2 1.5s infinite linear alternate-reverse; }
+        }
+
+        @keyframes scanline { 0% { left: -100%; } 100% { left: 150%; } }
+        .panel { position: relative; overflow: hidden; }
+        .panel::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,240,255,0.04), transparent);
+            animation: scanline 5s linear infinite; pointer-events: none; z-index: 0;
+        }
+        .panel > * { position: relative; z-index: 1; }
+
+        @keyframes borderPulse {
+            0%   { box-shadow: 0 0 0   rgba(59,130,246,0.3); }
+            50%  { box-shadow: 0 0 18px rgba(59,130,246,0.7); }
+            100% { box-shadow: 0 0 0   rgba(59,130,246,0.3); }
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { animation: borderPulse 2s infinite; }
+
+        @keyframes dotBlink {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50%       { opacity: 1;   transform: scale(1.2); }
+        }
+
+        .nav-item.active { box-shadow: inset 0 0 15px rgba(59,130,246,0.2), 0 0 10px rgba(59,130,246,0.1); }
+        @media (hover: hover) { .nav-item:hover { box-shadow: inset 0 0 10px rgba(59,130,246,0.1); transform: translateX(4px); } }
+
+        .stat-card { position: relative; overflow: hidden; }
+        .stat-card::before {
+            content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 4px;
+            background: var(--primary); transform: scaleY(0);
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @media (hover: hover) { .stat-card:hover::before { transform: scaleY(1); } }
+
+        .header h2 { text-shadow: 0 0 20px rgba(59,130,246,0.3); transition: text-shadow 0.3s; }
+        @media (hover: hover) { .header h2:hover { text-shadow: 0 0 40px rgba(59,130,246,0.7); } }
+
+        @media (hover: hover) {
+            .cyber-table tbody tr { transition: background 0.2s, transform 0.2s; }
+            .cyber-table tbody tr:hover { background: rgba(59,130,246,0.07); transform: translateX(4px); }
+        }
+
+        .modal-overlay.active .modal-box {
+            transform: translateY(0) scale(1);
+            box-shadow: 0 0 40px rgba(59,130,246,0.3), 0 20px 50px rgba(0,0,0,0.8);
+        }
+
+        @keyframes toastIn {
+            from { bottom: -30px; opacity: 0; transform: translateX(20px); }
+            to   { bottom: 0;     opacity: 1; transform: translateX(0); }
+        }
+
+        /* ============================================================
+           FULL MOBILE RESPONSIVE
+        ============================================================ */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed; left: 0; top: 0; height: 100dvh;
+                transform: translateX(-100%); border-right: 2px solid var(--border);
+                width: 80%; max-width: 300px; z-index: 100;
+                transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+                padding: 1.5rem 1.2rem;
+            }
+            .sidebar.mobile-open { transform: translateX(0); box-shadow: 10px 0 40px rgba(0,0,0,0.8); }
+            .sidebar-overlay.active { display: block; opacity: 1; }
+            .mobile-menu-btn { display: inline-flex; align-items: center; justify-content: center; }
+
+            .anti-gravity-app { flex-direction: column; }
+            .main-content { padding: 0.75rem; overflow-y: auto; height: 100dvh; }
+
+            .header { flex-wrap: nowrap; margin-bottom: 1rem; gap: 0.5rem; padding: 0.25rem 0; }
+            .header h2 { font-size: 1.1rem; letter-spacing: 1px; }
+            .header-left { gap: 10px; }
+            .header-right { gap: 8px; flex-shrink: 0; }
+            .digital-clock { font-size: 0.85rem; letter-spacing: 1px; }
+            .theme-btn { padding: 8px 10px; font-size: 0.9rem; }
+
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+            .stat-card { padding: 0.9rem; border-radius: 16px; }
+            .stat-card i { font-size: 1.1rem !important; }
+            .stat-number { font-size: 1.6rem; margin: 0.3rem 0; }
+            .stat-label { font-size: 0.7rem; }
+
+            .grid-layout { grid-template-columns: 1fr; gap: 0.75rem; }
+
+            .panel { padding: 0.9rem; border-radius: 16px; }
+            .panel-title { font-size: 0.9rem; margin-bottom: 1rem; gap: 8px; }
+
+            .log-box { height: 220px; font-size: 0.78rem; }
+            .panel > div[style*="height: 280px"] { height: 200px !important; }
+
+            .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
+            .cyber-table { font-size: 0.78rem; min-width: 420px; }
+            .cyber-table th { padding: 8px 10px; font-size: 0.7rem; }
+            .cyber-table td { padding: 8px 10px; }
+            .action-icon { padding: 7px; font-size: 0.95rem; }
+
+            .setting-row { flex-direction: column; align-items: flex-start; padding: 14px 0; gap: 12px; }
+            .setting-info { width: 100%; margin-right: 0 !important; }
+            .setting-info h4 { font-size: 0.9rem; }
+            .setting-info p  { font-size: 0.75rem; }
+            .setting-row .btn { width: 100%; margin-top: 4px; }
+
+            .btn { padding: 0.7rem 1rem; font-size: 0.75rem; border-radius: 10px; }
+            .btn-primary, .btn-outline { width: auto; }
+
+            .modal-overlay { align-items: flex-end; padding: 0; }
+            .modal-box { border-radius: 24px 24px 0 0; padding: 1.5rem 1.2rem; max-height: 92dvh; width: 100%; max-width: 100%; transform: translateY(100%); }
+            .modal-overlay.active .modal-box { transform: translateY(0); }
+            .form-group { margin-bottom: 1rem; }
+            .form-group input, .form-group select, .form-group textarea { padding: 10px 12px; font-size: 16px; }
+
+            .toast-container { align-items: center; bottom: 20px; right: 10px; left: 10px; }
+            .toast { font-size: 0.78rem; padding: 12px 16px; width: 100%; max-width: 100%; justify-content: flex-start; }
+
+            .metric-block { margin-bottom: 16px; }
+            .metric-header { font-size: 0.78rem; }
+            .status-pill { font-size: 0.7rem; padding: 5px 12px; }
+            .badge { font-size: 0.68rem; padding: 3px 8px; }
+
+            .panel > div[style*="justify-content: space-between"] { flex-direction: column; align-items: flex-start !important; gap: 8px; }
+            .panel > div[style*="justify-content: space-between"] .btn { width: 100%; }
+        }
+
+        @media (max-width: 400px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .header h2 { font-size: 1rem; }
+            .stat-number { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    // ========== ADMIN AUTH GUARD ==========
+    document.documentElement.style.visibility = 'hidden';
+    (async () => {
+        try {
+            const res = await fetch('/api/user', { credentials: 'include' });
+            if (!res.ok) { window.location.href = '/login.html'; return; }
+            const data = await res.json();
+            if (!data.user || data.user.role !== 'admin') {
+                window.location.href = '/index.html';
+                return;
+            }
+            document.documentElement.style.visibility = 'visible';
+        } catch (err) {
+            window.location.href = '/login.html';
+        }
+    })();
+</script>
+
+    <canvas id="sciFiCanvas"></canvas>
+    <canvas id="roboCatCanvas"></canvas>
+
+    <div class="anti-gravity-app">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <aside class="sidebar" id="sidebar">
+            <div class="logo" data-text="SPARKY OS"><i class="fa-solid fa-atom"></i> SPARKY OS</div>
+            <nav class="nav-links">
+                <div class="nav-item active" data-target="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</div>
+                <div class="nav-item" data-target="users"><i class="fa-solid fa-users"></i> Users Database</div>
+                <div class="nav-item" data-target="api"><i class="fa-solid fa-server"></i> API Node Status</div>
+                <div class="nav-item" data-target="security"><i class="fa-solid fa-shield-halved"></i> Security Logs</div>
+                <div class="nav-item" data-target="config"><i class="fa-solid fa-gear"></i> System Config</div>
+            </nav>
+            <div style="margin-top: auto; text-align: center;">
+                <div class="status-pill" id="global-status-pill"><div class="pulse"></div> <span id="global-status-text">SERVER ONLINE</span></div>
+                <div style="margin-top: 2rem; font-size: 0.8rem;"><a href="/" style="color: var(--text-muted); text-decoration: none;"><i class="fa-solid fa-arrow-left"></i> RETURN TO LINK</a></div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <button class="mobile-menu-btn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
+                    <div>
+                        <p style="color: var(--primary); font-size: 0.8rem; font-weight: bold; margin-bottom: 2px;" id="header-subtitle">SYSTEM ADMINISTRATION</p>
+                        <h2 id="header-title">COMMAND CENTER</h2>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button class="theme-btn" id="themeToggleBtn"><i class="fa-solid fa-sun"></i></button>
+                    <div class="digital-clock" id="clock">00:00:00</div>
+                </div>
+            </header>
+
+            <div id="dashboard" class="tab-section active-section">
+                <div class="stats-grid">
+                    <div class="stat-card"><i class="fa-solid fa-comments" style="color: var(--primary); font-size: 1.5rem;"></i><div class="stat-number" id="totalConversations">0</div><div class="stat-label">Total Threads</div></div>
+                    <div class="stat-card"><i class="fa-solid fa-message" style="color: var(--accent); font-size: 1.5rem;"></i><div class="stat-number" id="totalMessages">0</div><div class="stat-label">Messages Processed</div></div>
+                    <div class="stat-card"><i class="fa-solid fa-bolt" style="color: var(--neon-pink); font-size: 1.5rem;"></i><div class="stat-number" id="activeSessions">0</div><div class="stat-label">Active Sessions</div></div>
+                </div>
+                
+                <div class="grid-layout">
+                    <div class="panel">
+                        <h3 class="panel-title"><i class="fa-solid fa-wave-square"></i> Live Hardware Monitor</h3>
+                        <div style="position: relative; height: 280px; width: 100%;">
+                            <canvas id="liveChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="panel log-box" id="logContainer">
+                        <h3 class="panel-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-terminal"></i> Live Feed</h3>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-top: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+                        <h3 class="panel-title" style="margin: 0;"><i class="fa-solid fa-network-wired"></i> Live Neural Links</h3>
+                        <span class="badge" style="background: rgba(74, 222, 128, 0.1); color: var(--success); border: 1px solid var(--success); font-family: 'Orbitron';"><span class="pulse" style="display:inline-block; margin-right:5px;"></span> <span id="live-user-count">0</span> ONLINE</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="cyber-table" id="liveUsersTable">
+                            <thead><tr><th>System ID (Name)</th><th>IP Address</th><th>Ping</th><th>Status</th></tr></thead>
+                            <tbody id="liveUsersBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="users" class="tab-section">
+                
+                <div class="stats-grid" style="margin-bottom: 1.5rem;">
+                    <div class="stat-card" style="padding: 1rem;"><i class="fa-solid fa-users" style="color: var(--primary);"></i><div class="stat-number" id="usr-total" style="font-size: 1.5rem;">0</div><div class="stat-label">Total Personnel</div></div>
+                    <div class="stat-card" style="padding: 1rem;"><i class="fa-solid fa-user-shield" style="color: var(--accent);"></i><div class="stat-number" id="usr-admins" style="font-size: 1.5rem;">0</div><div class="stat-label">Root Admins</div></div>
+                    <div class="stat-card" style="padding: 1rem;"><i class="fa-solid fa-user-astronaut" style="color: var(--warning);"></i><div class="stat-number" id="usr-standard" style="font-size: 1.5rem;">0</div><div class="stat-label">Standard Users</div></div>
+                </div>
+
+                <div class="panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 15px;">
+                        <h3 class="panel-title" style="margin: 0;"><i class="fa-solid fa-database"></i> Personnel Database</h3>
+
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            
+                            <div style="position: relative;">
+                                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                                <input type="text" id="userSearch" placeholder="Search Identity..." style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px 8px 32px; border-radius: 8px; outline: none; font-family: 'Inter'; font-size: 0.85rem; width: 180px;" onkeyup="filterUsers()">
+                            </div>
+                            
+                            <select id="roleFilter" onchange="filterUsers()" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px; border-radius: 8px; outline: none; font-family: 'Inter'; font-size: 0.85rem;">
+                                <option value="all">All Roles</option>
+                                <option value="admin">Admins</option>
+                                <option value="user">Users</option>
+                            </select>
+
+                            <button class="btn btn-outline" style="padding: 0.5rem 1rem; border-color: var(--danger); color: var(--danger); display: none;" id="bulkDeleteBtn" onclick="bulkDelete()"><i class="fa-solid fa-trash-can"></i> BULK PURGE</button>
+                            <button class="btn btn-outline" style="padding: 0.5rem 1rem; border-color: var(--success); color: var(--success);" onclick="exportUsers()"><i class="fa-solid fa-file-csv"></i> EXPORT</button>
+                            <button class="btn btn-primary" onclick="openModal('userModal')" style="padding: 0.5rem 1rem;"><i class="fa-solid fa-user-plus"></i> ADD USER</button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="cyber-table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="selectAllUsers" onchange="toggleSelectAllUsers(this)" style="cursor: pointer;"></th>
+                                    <th>System ID</th>
+                                    <th>Clearance Level</th>
+                                    <th>Network Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="api" class="tab-section">
+                <div class="stats-grid">
+                    <div class="stat-card"><i class="fa-solid fa-microchip" style="color: var(--primary); font-size: 1.5rem;"></i><div class="stat-number" id="api-latency">42<span style="font-size: 1rem;">ms</span></div><div class="stat-label">Neural Latency</div></div>
+                    <div class="stat-card"><i class="fa-solid fa-brain" style="color: var(--accent); font-size: 1.5rem;"></i><div class="stat-number">V3.2</div><div class="stat-label">DeepSeek Core</div></div>
+                    <div class="stat-card"><i class="fa-solid fa-fire-flame-simple" style="color: var(--warning); font-size: 1.5rem;"></i><div class="stat-number" id="core-temp">45<span style="font-size: 1rem;">°C</span></div><div class="stat-label">Server Temp</div></div>
+                </div>
+
+                <div class="grid-layout">
+                    <div class="panel">
+                        <h3 class="panel-title"><i class="fa-solid fa-server"></i> Hardware Cluster Status</h3>
+                        <div class="metric-block"><div class="metric-header"><span>CPU Load</span> <span id="cpu-val">0%</span></div><div class="progress-bg"><div class="progress-fill" id="cpu-bar" style="width: 0%;"></div></div></div>
+                        <div class="metric-block"><div class="metric-header"><span>Memory Allocation</span> <span id="ram-val">0%</span></div><div class="progress-bg"><div class="progress-fill" id="ram-bar" style="width: 0%;"></div></div></div>
+                        <div class="metric-block"><div class="metric-header"><span>Storage IOPS</span> <span id="io-val">450 / 5000</span></div><div class="progress-bg"><div class="progress-fill" id="io-bar" style="width: 15%; background: var(--accent); box-shadow: 0 0 10px var(--accent);"></div></div></div>
+                    </div>
+                    
+                    <div class="panel">
+                        <h3 class="panel-title"><i class="fa-solid fa-globe"></i> Network & Routing</h3>
+                        <div style="font-family: monospace; font-size: 0.9rem; color: var(--text-muted); line-height: 2;">
+                            <p>Uplink Status: <span id="network-status" style="color: var(--success); font-weight: bold;">CONNECTED</span></p>
+                            <p>Node Port: <span style="color: var(--text-main);">3000 (HTTPS/WSS)</span></p>
+                            <p>Uptime: <span id="uptime-val" style="color: var(--text-main);">0h 0m</span></p>
+                            <p>Tokens Proc: <span id="tokens-val" style="color: var(--accent-glow);">0</span></p>
+                        </div>
+                        <button class="btn btn-outline" id="rebootBtn" style="width: 100%; margin-top: 1.5rem; border-color: var(--danger); color: var(--danger);" onclick="rebootNode()"><i class="fa-solid fa-rotate"></i> HARD REBOOT NODE</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="security" class="tab-section">
+                <div class="panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 15px;">
+                        <h3 class="panel-title" style="margin: 0;"><i class="fa-solid fa-shield-halved"></i> Firewall & Auth Logs</h3>
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <div style="position: relative;">
+                                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                                <input type="text" id="logSearch" placeholder="Filter logs..." style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px 8px 32px; border-radius: 8px; outline: none; font-family: 'Inter'; font-size: 0.85rem; width: 200px;" onkeyup="filterLogs()">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); padding: 4px 12px; border-radius: 12px; background: rgba(0,0,0,0.2);">
+                                <span style="font-size: 0.75rem; color: var(--text-muted); font-family: 'Orbitron'; font-weight: bold;">PAUSE FEED</span>
+                                <label class="cyber-switch" style="transform: scale(0.8); margin: 0;"><input type="checkbox" id="pauseFeedToggle" onchange="toggleLogPause(this)"><span class="switch-slider"></span></label>
+                            </div>
+                            <button class="btn btn-outline" style="padding: 0.5rem 1rem; border-color: var(--success); color: var(--success);" onclick="exportLogs()"><i class="fa-solid fa-file-csv"></i> EXPORT</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="cyber-table" id="securityTable">
+                            <thead><tr><th>Timestamp</th><th>Severity</th><th>Event Type</th><th>IP Address</th><th>Details</th></tr></thead>
+                            <tbody id="securityTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="config" class="tab-section">
+                <div class="panel" style="max-width: 800px; margin-bottom: 1.5rem;">
+                    <h3 class="panel-title"><i class="fa-solid fa-gear"></i> Core Parameters</h3>
+                    <div class="setting-row">
+                        <div class="setting-info"><h4>Nvidia DeepSeek API Key</h4><p id="apiKeyDisplay">Current key: Status Active</p></div>
+                        <button class="btn btn-outline" style="padding: 0.5rem 1rem;" onclick="openModal('apiModal')"><i class="fa-solid fa-pen"></i> Update Key</button>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info"><h4>Base System Directive</h4><p>Core personality and operational constraints.</p></div>
+                        <button class="btn btn-outline" style="padding: 0.5rem 1rem;" onclick="openModal('promptModal')"><i class="fa-solid fa-terminal"></i> Edit Directive</button>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info" style="flex: 1; margin-right: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;"><h4>Cognitive Variance (Temperature)</h4><span id="tempValue" style="color: var(--primary); font-family: 'Orbitron'; font-weight: bold; font-size: 1.1rem;">0.7</span></div>
+                            <p style="margin-top: 4px;">Adjusts AI response creativity vs. deterministic output.</p>
+                            <input type="range" id="tempSlider" class="cyber-range" min="0" max="1" step="0.1" value="0.7" style="width: 100%; margin-top: 15px;">
+                        </div>
+                    </div>
+                    <div class="setting-row" style="border-bottom: none;">
+                        <div class="setting-info"><h4>Maintenance Mode</h4><p>Lock out all non-admin connections. Active sessions will be terminated.</p></div>
+                        <label class="cyber-switch"><input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenance(this)"><span class="switch-slider"></span></label>
+                    </div>
+                </div>
+
+                <div class="panel" style="max-width: 800px; border-color: rgba(239, 68, 68, 0.4); box-shadow: inset 0 0 20px rgba(239, 68, 68, 0.05);">
+                    <h3 class="panel-title" style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone</h3>
+                    <div class="setting-row" style="border-bottom: none;">
+                        <div class="setting-info"><h4 style="color: var(--danger);">Purge Global Cache</h4><p>Wipes all current conversation threads and temporary neural link data across the server.</p></div>
+                        <button class="btn btn-outline" style="border-color: var(--danger); color: var(--danger); padding: 0.5rem 1rem;" onclick="purgeCache()"><i class="fa-solid fa-dumpster-fire"></i> PURGE CACHE</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-box">
+            <h3 class="panel-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-user-plus"></i> Initialize User</h3>
+            <form id="addUserForm" onsubmit="submitNewUser(event)">
+                <div class="form-group"><label>System ID (Username)</label><input type="text" id="newUsername" required></div>
+                <div class="form-group"><label>Access Role</label><select id="newUserRole"><option value="user">Standard</option><option value="admin">Root Admin</option></select></div>
+                <div class="form-group"><label>Security Key (Password)</label><input type="password" required></div>
+                <div style="display: flex; gap: 10px; margin-top: 2rem;">
+                    <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeModal('userModal')">CANCEL</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">AUTHORIZE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-box">
+            <h3 class="panel-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-pen-to-square"></i> Modify Identity</h3>
+            <form id="editUserForm" onsubmit="submitEditUser(event)">
+                <input type="hidden" id="editUsername">
+                <div class="form-group"><label>New Access Role</label><select id="editUserRole"><option value="user">Standard</option><option value="admin">Root Admin</option></select></div>
+                <div class="form-group"><label>New Security Key (Leave blank to keep current)</label><input type="password" id="editPassword"></div>
+                <div style="display: flex; gap: 10px; margin-top: 2rem;">
+                    <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeModal('editModal')">CANCEL</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">UPDATE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="apiModal">
+        <div class="modal-box">
+            <h3 class="panel-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-key"></i> Nvidia API Key</h3>
+            <form id="apiForm" onsubmit="submitApiKey(event)">
+                <div class="form-group"><label>Enter New Key</label><input type="password" id="newApiKey" required></div>
+                <div style="display: flex; gap: 10px; margin-top: 2rem;">
+                    <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeModal('apiModal')">CANCEL</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">INJECT KEY</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="promptModal">
+        <div class="modal-box">
+            <h3 class="panel-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-terminal"></i> Edit Base Directive</h3>
+            <form id="promptForm" onsubmit="submitPrompt(event)">
+                <div class="form-group">
+                    <label>System Prompt (Overrides AI behavior)</label>
+                    <textarea id="systemPromptInput" rows="5" required style="resize: vertical;">You are Sparky OS, an advanced cyberpunk AI terminal. Be highly intelligent, concise, and professional. Use markdown for formatting.</textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 2rem;">
+                    <button type="button" class="btn btn-outline" style="flex: 1;" onclick="closeModal('promptModal')">CANCEL</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">SAVE DIRECTIVE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+<script>
+    // ========== SCI-FI GLITTER PARTICLE CANVAS ==========
+    const sciFiCanvas = document.getElementById('sciFiCanvas');
+    const sciFiCtx = sciFiCanvas.getContext('2d');
+    let sfWidth, sfHeight, sfParticles;
+    let sfMouse = { x: undefined, y: undefined, radius: 180 };
+
+    function initSciFiCanvas() {
+        sfWidth = sciFiCanvas.width = window.innerWidth;
+        sfHeight = sciFiCanvas.height = window.innerHeight;
+        sfParticles = [];
+        const num = Math.floor((sfWidth * sfHeight) / 9000);
+        for (let i = 0; i < num; i++) sfParticles.push(new SFParticle());
+    }
+
+    class SFParticle {
+        constructor() {
+            this.x = Math.random() * sfWidth;
+            this.y = Math.random() * sfHeight;
+            this.size = Math.random() * 2.5 + 0.5;
+            this.baseX = this.x; this.baseY = this.y;
+            this.density = Math.random() * 30 + 1;
+            this.twinkleSpeed = Math.random() * 0.05 + 0.01;
+            this.alpha = Math.random();
+        }
+        draw() {
+            this.alpha += this.twinkleSpeed;
+            if (this.alpha > 1 || this.alpha < 0.2) this.twinkleSpeed = -this.twinkleSpeed;
+            sciFiCtx.shadowBlur = 15;
+            sciFiCtx.shadowColor = 'rgba(0, 240, 255, 1)';
+            sciFiCtx.fillStyle = `rgba(0, 240, 255, ${this.alpha})`;
+            sciFiCtx.beginPath();
+            sciFiCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            sciFiCtx.closePath(); sciFiCtx.fill();
+            sciFiCtx.shadowBlur = 0;
+        }
+        update() {
+            let dx = sfMouse.x - this.x, dy = sfMouse.y - this.y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            let force = (sfMouse.radius - dist) / sfMouse.radius;
+            if (dist < sfMouse.radius) {
+                this.x -= (dx/dist) * force * this.density;
+                this.y -= (dy/dist) * force * this.density;
+            } else {
+                if (this.x !== this.baseX) this.x -= (this.x - this.baseX) / 20;
+                if (this.y !== this.baseY) this.y -= (this.y - this.baseY) / 20;
+            }
+        }
+    }
+
+    function connectSFParticles() {
+        for (let a = 0; a < sfParticles.length; a++) {
+            for (let b = a; b < sfParticles.length; b++) {
+                let d = ((sfParticles[a].x-sfParticles[b].x)**2) + ((sfParticles[a].y-sfParticles[b].y)**2);
+                if (d < (sfWidth/6)*(sfHeight/6)) {
+                    sciFiCtx.strokeStyle = `rgba(0,240,255,${(1-d/25000)*0.4})`;
+                    sciFiCtx.lineWidth = 1;
+                    sciFiCtx.beginPath();
+                    sciFiCtx.moveTo(sfParticles[a].x, sfParticles[a].y);
+                    sciFiCtx.lineTo(sfParticles[b].x, sfParticles[b].y);
+                    sciFiCtx.stroke();
+                }
+            }
+        }
+    }
+
+    function animateSFCanvas() {
+        sciFiCtx.clearRect(0, 0, sfWidth, sfHeight);
+        sfParticles.forEach(p => { p.update(); p.draw(); });
+        connectSFParticles();
+        requestAnimationFrame(animateSFCanvas);
+    }
+
+    window.addEventListener('resize', initSciFiCanvas);
+    window.addEventListener('mousemove', (e) => { sfMouse.x = e.x; sfMouse.y = e.y; });
+    window.addEventListener('mouseout',  () => { sfMouse.x = undefined; sfMouse.y = undefined; });
+    window.addEventListener('touchmove', (e) => { sfMouse.x = e.touches[0].clientX; sfMouse.y = e.touches[0].clientY; });
+    window.addEventListener('touchend',  () => { sfMouse.x = undefined; sfMouse.y = undefined; });
+    initSciFiCanvas();
+    animateSFCanvas();
+
+    // ========== MOUSE SENSITIVE ROBO CAT BACKGROUND ==========
+    const catCanvas = document.getElementById('roboCatCanvas');
+    const catCtx = catCanvas.getContext('2d');
+    let cw, ch;
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+
+    function resizeCatCanvas() { cw = catCanvas.width = window.innerWidth; ch = catCanvas.height = window.innerHeight; }
+    window.addEventListener('resize', resizeCatCanvas); resizeCatCanvas();
+    window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+    window.addEventListener('touchmove', (e) => { if(e.touches.length > 0) { mouseX = e.touches[0].clientX; mouseY = e.touches[0].clientY; } });
+
+    function drawRoboCat() {
+        catCtx.clearRect(0, 0, cw, ch);
+        const centerX = cw / 2, centerY = ch / 2, scale = Math.min(cw, ch) * 0.45; 
+        const breath = Math.sin(Date.now() / 1500) * 15;
+
+        catCtx.save(); catCtx.translate(centerX, centerY + breath);
+        catCtx.strokeStyle = 'rgba(59, 130, 246, 0.4)'; catCtx.lineWidth = 2; catCtx.lineJoin = 'round'; catCtx.fillStyle = 'rgba(10, 15, 30, 0.1)';
+
+        catCtx.beginPath();
+        catCtx.moveTo(0, scale * 0.5); catCtx.lineTo(scale * 0.6, scale * 0.2); catCtx.lineTo(scale * 0.7, -scale * 0.1); 
+        catCtx.lineTo(scale * 0.6, -scale * 0.5); catCtx.lineTo(scale * 0.8, -scale * 0.9); catCtx.lineTo(scale * 0.3, -scale * 0.6); 
+        catCtx.lineTo(-scale * 0.3, -scale * 0.6); catCtx.lineTo(-scale * 0.8, -scale * 0.9); catCtx.lineTo(-scale * 0.6, -scale * 0.5); 
+        catCtx.lineTo(-scale * 0.7, -scale * 0.1); catCtx.lineTo(-scale * 0.6, scale * 0.2); 
+        catCtx.closePath(); catCtx.fill(); catCtx.stroke();
+
+        catCtx.beginPath();
+        catCtx.moveTo(0, -scale * 0.6); catCtx.lineTo(scale * 0.15, -scale * 0.4); catCtx.lineTo(0, -scale * 0.3); catCtx.lineTo(-scale * 0.15, -scale * 0.4); 
+        catCtx.closePath(); catCtx.strokeStyle = 'rgba(168, 85, 247, 0.3)'; catCtx.stroke();
+        
+        catCtx.beginPath(); catCtx.moveTo(0, -scale * 0.3); catCtx.lineTo(0, scale * 0.2); catCtx.stroke();
+
+        catCtx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+        catCtx.beginPath(); catCtx.moveTo(scale * 0.3, scale * 0.1); catCtx.lineTo(scale * 0.9, scale * 0.1); catCtx.stroke();
+        catCtx.beginPath(); catCtx.moveTo(scale * 0.3, scale * 0.2); catCtx.lineTo(scale * 0.8, scale * 0.3); catCtx.stroke();
+        catCtx.beginPath(); catCtx.moveTo(-scale * 0.3, scale * 0.1); catCtx.lineTo(-scale * 0.9, scale * 0.1); catCtx.stroke();
+        catCtx.beginPath(); catCtx.moveTo(-scale * 0.3, scale * 0.2); catCtx.lineTo(-scale * 0.8, scale * 0.3); catCtx.stroke();
+
+        const leftEyeX = -scale * 0.35, rightEyeX = scale * 0.35, eyeY = -scale * 0.1;
+        const angleLeft = Math.atan2(mouseY - (centerY + breath + eyeY), mouseX - (centerX + leftEyeX));
+        const angleRight = Math.atan2(mouseY - (centerY + breath + eyeY), mouseX - (centerX + rightEyeX));
+        const maxOffset = scale * 0.08;
+        const leftPupilX = leftEyeX + Math.cos(angleLeft) * maxOffset, leftPupilY = eyeY + Math.sin(angleLeft) * maxOffset;
+        const rightPupilX = rightEyeX + Math.cos(angleRight) * maxOffset, rightPupilY = eyeY + Math.sin(angleRight) * maxOffset;
+
+        catCtx.strokeStyle = 'rgba(236, 72, 154, 0.6)'; catCtx.lineWidth = 3;
+        catCtx.beginPath(); catCtx.moveTo(leftEyeX - scale * 0.15, eyeY); catCtx.lineTo(leftEyeX, eyeY - scale * 0.1); catCtx.lineTo(leftEyeX + scale * 0.15, eyeY + scale * 0.05); catCtx.lineTo(leftEyeX, eyeY + scale * 0.1); catCtx.closePath(); catCtx.stroke();
+        catCtx.beginPath(); catCtx.moveTo(rightEyeX + scale * 0.15, eyeY); catCtx.lineTo(rightEyeX, eyeY - scale * 0.1); catCtx.lineTo(rightEyeX - scale * 0.15, eyeY + scale * 0.05); catCtx.lineTo(rightEyeX, eyeY + scale * 0.1); catCtx.closePath(); catCtx.stroke();
+
+        catCtx.fillStyle = 'rgba(236, 72, 154, 0.9)'; catCtx.shadowColor = 'rgba(236, 72, 154, 1)'; catCtx.shadowBlur = 20;
+        catCtx.beginPath(); catCtx.arc(leftPupilX, leftPupilY, scale * 0.05, 0, Math.PI * 2); catCtx.fill();
+        catCtx.beginPath(); catCtx.arc(rightPupilX, rightPupilY, scale * 0.05, 0, Math.PI * 2); catCtx.fill();
+
+        catCtx.shadowBlur = 0; catCtx.restore();
+        requestAnimationFrame(drawRoboCat);
+    }
+    drawRoboCat();
+
+    // ========== UI LOGIC ==========
+    setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleTimeString(), 1000);
+    
+    function showToast(msg, type = 'success') {
+        const c = document.getElementById('toastContainer');
+        const t = document.createElement('div'); t.className = `toast ${type}`;
+        let icon = 'fa-check-circle'; if(type === 'warning') icon = 'fa-triangle-exclamation'; if(type === 'error') icon = 'fa-circle-xmark';
+        t.innerHTML = `<i class="fa-solid ${icon}"></i> ${msg}`;
+        c.appendChild(t); setTimeout(() => t.remove(), 3500);
+    }
+    
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    function closeMobileMenu() { if(window.innerWidth <= 768) { sidebar.classList.remove('mobile-open'); sidebarOverlay.classList.remove('active'); } }
+    document.getElementById('menuBtn').addEventListener('click', () => { sidebar.classList.add('mobile-open'); sidebarOverlay.classList.add('active'); });
+    sidebarOverlay.addEventListener('click', closeMobileMenu);
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            item.classList.add('active');
+            document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active-section'));
+            document.getElementById(item.getAttribute('data-target')).classList.add('active-section');
+            document.getElementById('header-title').innerText = item.innerText;
+            closeMobileMenu(); 
+        });
+    });
+
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = document.body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'aurora' ? '' : 'aurora';
+        if (newTheme === 'aurora') { document.body.setAttribute('data-theme', 'aurora'); themeToggleBtn.innerHTML = '<i class="fa-solid fa-moon"></i>'; } 
+        else { document.body.removeAttribute('data-theme'); themeToggleBtn.innerHTML = '<i class="fa-solid fa-sun"></i>'; }
+        const newChartColor = newTheme === 'aurora' ? '#1e293b' : '#eef5ff';
+        const newGridColor = newTheme === 'aurora' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.05)';
+        liveChart.options.plugins.legend.labels.color = newChartColor;
+        liveChart.options.scales.y.ticks.color = newChartColor;
+        liveChart.options.scales.y.grid.color = newGridColor;
+        liveChart.update();
+    });
+
+    document.getElementById('tempSlider').addEventListener('input', function() { document.getElementById('tempValue').innerText = this.value; });
+    
+    // --- MAINTENANCE MODE FUNCTION ---
+    async function toggleMaintenance(el) {
+        const isActive = el.checked;
+        try {
+            const res = await fetch('/api/admin/maintenance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: isActive })
+            });
+            if (!res.ok) throw new Error("Failed to toggle maintenance mode.");
+            
+            if (isActive) {
+                showToast('Maintenance Mode ENGAGED. Non-admin traffic blocked.', 'warning');
+            } else {
+                showToast('Maintenance Mode LIFTED. System open.', 'success');
+            }
+            fetchRealStats(); // Force log refresh
+        } catch(err) {
+            el.checked = !isActive; 
+            showToast(err.message, 'error');
+        }
+    }
+
+    function purgeCache() { if(confirm("CRITICAL WARNING: This will immediately drop all active user sessions and clear the global cache. Proceed?")) showToast('Global cache purged. Neural links reset.', 'success'); }
+    function submitPrompt(e) { e.preventDefault(); closeModal('promptModal'); showToast('System Directive updated successfully.', 'success'); }
+
+    window.isLogPaused = false;
+    function toggleLogPause(el) { window.isLogPaused = el.checked; if(window.isLogPaused) showToast("Live log feed paused.", "warning"); else showToast("Live log feed resumed.", "success"); }
+    function filterLogs() {
+        const term = document.getElementById('logSearch').value.toLowerCase();
+        document.querySelectorAll('#securityTableBody tr').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; });
+    }
+    function exportLogs() {
+        const rows = document.querySelectorAll('#securityTableBody tr');
+        if(rows.length === 0) return showToast("No logs to export.", "warning");
+        let csvContent = "data:text/csv;charset=utf-8,Timestamp,Severity,Event Type,IP Address,Details\n";
+        rows.forEach(row => {
+            if(row.style.display !== 'none') {
+                const cols = row.querySelectorAll('td');
+                const rowData = Array.from(cols).map(c => `"${c.innerText}"`).join(",");
+                csvContent += rowData + "\n";
+            }
+        });
+        const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `sparky_firewall_logs_${new Date().getTime()}.csv`); document.body.appendChild(link); link.click(); link.remove();
+        showToast("Filtered logs exported to CSV.", "success");
+    }
+
+    // ========== USER DATABASE SPECIFIC LOGIC ==========
+    let selectedUsers = new Set();
+    
+    function toggleUserSelection(checkbox, username) {
+        if (checkbox.checked) selectedUsers.add(username); else selectedUsers.delete(username);
+        updateBulkDeleteButton();
+    }
+
+    function toggleSelectAllUsers(checkbox) {
+        const rowCheckboxes = document.querySelectorAll('.user-checkbox');
+        rowCheckboxes.forEach(cb => {
+            cb.checked = checkbox.checked;
+            if(checkbox.checked) selectedUsers.add(cb.value); else selectedUsers.delete(cb.value);
+        });
+        updateBulkDeleteButton();
+    }
+
+    function updateBulkDeleteButton() {
+        const btn = document.getElementById('bulkDeleteBtn');
+        if(selectedUsers.size > 0) btn.style.display = 'inline-flex'; else btn.style.display = 'none';
+    }
+
+    function filterUsers() {
+        const term = document.getElementById('userSearch').value.toLowerCase();
+        const roleFilt = document.getElementById('roleFilter').value;
+        document.querySelectorAll('#userTableBody tr').forEach(row => {
+            const id = row.cells[1].innerText.toLowerCase();
+            const role = row.cells[2].innerText.toLowerCase();
+            let show = true;
+            if(term && !id.includes(term)) show = false;
+            if(roleFilt !== 'all' && role !== roleFilt) show = false;
+            row.style.display = show ? '' : 'none';
+        });
+    }
+
+    async function bulkDelete() {
+        if(!confirm(`WARNING: Erase ${selectedUsers.size} users from the database? This action is irreversible.`)) return;
+        const btn = document.getElementById('bulkDeleteBtn');
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> PURGING...'; btn.disabled = true;
+        try {
+            const promises = Array.from(selectedUsers).map(username => fetch(`/api/admin/user/${username}`, { method: 'DELETE' }));
+            await Promise.all(promises);
+            showToast(`Successfully purged ${selectedUsers.size} users.`, 'success');
+            selectedUsers.clear(); updateBulkDeleteButton(); document.getElementById('selectAllUsers').checked = false; fetchRealStats();
+        } catch (err) { showToast('Bulk purge encountered an error.', 'error'); } 
+        finally { btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> BULK PURGE'; btn.disabled = false; }
+    }
+
+    function exportUsers() {
+        const rows = document.querySelectorAll('#userTableBody tr');
+        if(rows.length === 0) return showToast("No users to export.", "warning");
+        let csvContent = "data:text/csv;charset=utf-8,System ID,Clearance Level,Status\n";
+        rows.forEach(row => {
+            if(row.style.display !== 'none') {
+                const cols = row.querySelectorAll('td');
+                const id = cols[1].innerText.trim(), role = cols[2].innerText.trim(), status = cols[3].innerText.trim();
+                csvContent += `"${id}","${role}","${status}"\n`;
+            }
+        });
+        const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `sparky_personnel_${new Date().getTime()}.csv`); document.body.appendChild(link); link.click(); link.remove();
+        showToast("User database exported to CSV.", "success");
+    }
+
+    // ========== REAL-TIME CHARTING ==========
+    const ctx = document.getElementById('liveChart').getContext('2d');
+    const liveChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: Array(15).fill(''), datasets: [
+            { label: 'CPU %', data: Array(15).fill(0), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.2)', fill: true, tension: 0.4 },
+            { label: 'RAM %', data: Array(15).fill(0), borderColor: '#a855f7', backgroundColor: 'transparent', borderDash: [5, 5], tension: 0.4 }
+        ]},
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#eef5ff', font: {family: 'Orbitron'} } } },
+            scales: { y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#a0b3d9' } }, x: { grid: { display: false } } },
+            animation: { duration: 0 } 
+        }
+    });
+
+    // ========== FETCH REAL DATA (1 SECOND INTERVAL) ==========
+    let fetchFailures = 0;
+    async function fetchRealStats() {
+        try {
+            const res = await fetch('/api/admin/stats');
+            if (!res.ok) throw new Error('API unreachable');
+            const data = await res.json();
+            
+            document.getElementById('totalConversations').innerText = data.totalConversations;
+            document.getElementById('totalMessages').innerText = data.totalMessages;
+            document.getElementById('activeSessions').innerText = data.activeSessions;
+            document.getElementById('live-user-count').innerText = data.activeSessions;
+
+            // SYNC MAINTENANCE TOGGLE STATE
+            document.getElementById('maintenanceToggle').checked = data.maintenanceMode;
+
+            document.getElementById('cpu-val').innerText = data.cpu + "%"; document.getElementById('cpu-bar').style.width = data.cpu + "%";
+            document.getElementById('ram-val').innerText = data.ram + "%"; document.getElementById('ram-bar').style.width = data.ram + "%";
+            document.getElementById('uptime-val').innerText = data.uptime;
+
+            const fakeLatency = Math.floor(Math.random() * 20) + 30; 
+            const fakeTemp = (Math.floor(Math.random() * 15) + 40 + (data.cpu * 0.2)).toFixed(1); 
+            const ioReadWrite = Math.floor(Math.random() * 800) + 200; 
+            
+            document.getElementById('api-latency').innerHTML = `${fakeLatency}<span style="font-size: 1rem;">ms</span>`;
+            document.getElementById('core-temp').innerHTML = `${fakeTemp}<span style="font-size: 1rem;">°C</span>`;
+            document.getElementById('tokens-val').innerText = (data.totalMessages * 142).toLocaleString(); 
+            document.getElementById('io-val').innerText = `${ioReadWrite} / 5000`;
+            document.getElementById('io-bar').style.width = `${(ioReadWrite / 5000) * 100}%`;
+
+            liveChart.data.datasets[0].data.push(data.cpu); liveChart.data.datasets[0].data.shift();
+            liveChart.data.datasets[1].data.push(data.ram); liveChart.data.datasets[1].data.shift(); liveChart.update();
+
+            if (!window.isLogPaused) {
+                const logTableBody = document.getElementById('securityTableBody');
+                const liveFeed = document.getElementById('logContainer');
+                const searchTerm = document.getElementById('logSearch') ? document.getElementById('logSearch').value.toLowerCase() : '';
+                
+                let tableHTML = ''; let feedHTML = '<h3 class="panel-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-terminal"></i> Live Feed</h3>';
+                
+                data.logs.forEach(log => {
+                    let color = "var(--success)", severity = "INFO";
+                    if (log.type.includes('Failed') || log.type.includes('Error') || log.type.includes('Blocked')) { color = "var(--danger)"; severity = "CRIT"; } 
+                    else if (log.type.includes('Reboot') || log.type.includes('Warning') || log.type.includes('Alert')) { color = "var(--warning)"; severity = "WARN"; }
+                    const rawTextForSearch = `${log.time} ${severity} ${log.type} ${log.ip} ${log.details}`.toLowerCase();
+                    const displayStyle = (searchTerm === '' || rawTextForSearch.includes(searchTerm)) ? '' : 'display:none;';
+
+                    tableHTML += `<tr style="${displayStyle}">
+                        <td style="font-family: monospace; color: var(--text-muted);">${log.time}</td>
+                        <td><span class="badge" style="border: 1px solid ${color}; color: ${color}; background: rgba(0,0,0,0.2);">${severity}</span></td>
+                        <td><span style="color: ${color}; font-weight: bold;">${log.type}</span></td>
+                        <td style="font-family: monospace; color: var(--accent);">${log.ip}</td>
+                        <td>${log.details}</td>
+                    </tr>`;
+                    feedHTML += `<div class="log-entry" style="border-color: ${color}; color: ${color};">[${log.time}] [${severity}] ${log.details}</div>`;
+                });
+                logTableBody.innerHTML = tableHTML; liveFeed.innerHTML = feedHTML;
+            }
+
+            const activeUsers = data.liveUsers || [
+                { username: "Root_Admin", ip: "192.168.1.104", ping: "14ms", status: "Typing..." },
+                { username: "Guest_7742", ip: "10.0.0.45", ping: "42ms", status: "Idle" },
+                { username: "Cypher_X", ip: "172.16.254.1", ping: "8ms", status: "Active" }
+            ];
+
+            const userTableBody = document.getElementById('userTableBody');
+            const usrSearchTerm = document.getElementById('userSearch') ? document.getElementById('userSearch').value.toLowerCase() : '';
+            const usrRoleFilt = document.getElementById('roleFilter') ? document.getElementById('roleFilter').value : 'all';
+            
+            let adminCount = 0, userCount = 0; let newTbody = '';
+            data.users.forEach(user => {
+                if(user.role === 'admin') adminCount++; else userCount++;
+                const badgeClass = user.role === 'admin' ? 'badge admin' : 'badge user';
+                const isChecked = selectedUsers.has(user.username) ? 'checked' : '';
+                
+                const isOnline = activeUsers.some(u => u.username === user.username);
+                const statusBadge = isOnline 
+                    ? `<span style="color: var(--success); font-size: 0.8rem;"><i class="fa-solid fa-circle" style="font-size: 0.5rem; vertical-align: middle; margin-right: 4px;"></i>ONLINE</span>`
+                    : `<span style="color: var(--text-muted); font-size: 0.8rem;"><i class="fa-solid fa-circle" style="font-size: 0.5rem; vertical-align: middle; margin-right: 4px;"></i>OFFLINE</span>`;
+
+                let display = '';
+                if (usrSearchTerm && !user.username.toLowerCase().includes(usrSearchTerm)) display = 'display: none;';
+                if (usrRoleFilt !== 'all' && user.role !== usrRoleFilt) display = 'display: none;';
+
+                newTbody += `<tr style="${display}">
+                    <td><input type="checkbox" class="user-checkbox" value="${user.username}" onchange="toggleUserSelection(this, '${user.username}')" ${isChecked} style="cursor: pointer;"></td>
+                    <td style="font-weight: 600;"><i class="fa-solid fa-user-astronaut" style="color: var(--text-muted); margin-right: 8px;"></i> ${user.username}</td>
+                    <td><span class="${badgeClass}">${user.role.toUpperCase()}</span></td>
+                    <td>${statusBadge}</td>
+                    <td style="white-space: nowrap;">
+                        <i class="fa-solid fa-pen-to-square action-icon" onclick="openEditModal('${user.username}', '${user.role}')" title="Edit"></i>
+                        <i class="fa-solid fa-trash-can action-icon del" onclick="deleteUser('${user.username}')" title="Delete"></i>
+                    </td>
+                </tr>`;
+            });
+            userTableBody.innerHTML = newTbody;
+            
+            document.getElementById('usr-total').innerText = data.users.length;
+            document.getElementById('usr-admins').innerText = adminCount;
+            document.getElementById('usr-standard').innerText = userCount;
+
+            const liveUsersBody = document.getElementById('liveUsersBody'); liveUsersBody.innerHTML = '';
+            activeUsers.forEach(user => {
+                let statusColor = user.status.toLowerCase().includes('idle') ? 'var(--warning)' : 'var(--success)';
+                liveUsersBody.innerHTML += `<tr>
+                    <td style="font-weight: 600; color: var(--text-main);"><i class="fa-solid fa-user-astronaut" style="color: var(--primary); margin-right: 8px;"></i> ${user.username}</td>
+                    <td style="font-family: monospace; color: var(--accent);">${user.ip}</td>
+                    <td style="font-family: monospace; color: var(--text-muted);">${user.ping || 'N/A'}</td>
+                    <td><span style="color: ${statusColor}; font-size: 0.8rem;"><i class="fa-solid fa-circle" style="font-size: 0.5rem; vertical-align: middle; margin-right: 4px;"></i>${user.status}</span></td>
+                </tr>`;
+            });
+
+        } catch (err) {
+            fetchFailures++;
+            if (fetchFailures > 2) {
+                document.getElementById('network-status').innerText = 'OFFLINE'; document.getElementById('network-status').style.color = 'var(--danger)';
+                document.getElementById('global-status-text').innerText = 'NODE OFFLINE'; document.getElementById('global-status-pill').className = 'status-pill rebooting';
+            }
+        }
+    }
+
+    // ========== ADMIN ACTIONS ==========
+    async function submitNewUser(e) {
+        e.preventDefault(); const username = document.getElementById('newUsername').value, role = document.getElementById('newUserRole').value, password = e.target.querySelector('input[type="password"]').value;
+        try {
+            const res = await fetch('/api/admin/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, role }) });
+            if(!res.ok) throw new Error((await res.json()).error);
+            closeModal('userModal'); document.getElementById('addUserForm').reset(); showToast(`User ${username} added.`, 'success'); fetchRealStats(); 
+        } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    async function deleteUser(username) {
+        if(!confirm(`Erase user '${username}' from the database?`)) return;
+        try {
+            const res = await fetch(`/api/admin/user/${username}`, { method: 'DELETE' });
+            if(!res.ok) throw new Error((await res.json()).error);
+            showToast(`User ${username} deleted.`, 'success'); fetchRealStats();
+        } catch(err) { showToast(err.message, 'error'); }
+    }
+
+    function openEditModal(username, role) { document.getElementById('editUsername').value = username; document.getElementById('editUserRole').value = role; document.getElementById('editPassword').value = ''; openModal('editModal'); }
+
+    async function submitEditUser(e) {
+        e.preventDefault(); const username = document.getElementById('editUsername').value, role = document.getElementById('editUserRole').value, password = document.getElementById('editPassword').value;
+        try {
+            const res = await fetch(`/api/admin/user/${username}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password, role }) });
+            if(!res.ok) throw new Error((await res.json()).error);
+            closeModal('editModal'); showToast(`User ${username} modified.`, 'success'); fetchRealStats();
+        } catch(err) { showToast(err.message, 'error'); }
+    }
+
+    async function rebootNode() {
+        if(!confirm("DANGER: This will kill the Node server!")) return; document.getElementById('rebootBtn').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> REBOOTING...';
+        try { await fetch('/api/admin/reboot', { method: 'POST' }); showToast('Kill signal sent.', 'success'); } catch (e) {}
+    }
+
+    async function submitApiKey(e) {
+        e.preventDefault(); const newKey = document.getElementById('newApiKey').value;
+        try { await fetch('/api/admin/apikey', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newKey }) }); closeModal('apiModal'); document.getElementById('apiForm').reset(); showToast('Key injected.', 'success'); } 
+        catch(err) { showToast('Update failed.', 'error'); }
+    }
+
+    fetchRealStats(); setInterval(fetchRealStats, 1000); 
+</script>
+</body>
+</html>
