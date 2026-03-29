@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis'
 
-// Connect using the specific Vercel prefix from your screenshot
 const redis = new Redis({
   url: process.env.STORAGE_KV_REST_API_URL,
   token: process.env.STORAGE_KV_REST_API_TOKEN,
@@ -12,7 +11,6 @@ export default async function handler(req, res) {
     const { username, password } = req.body;
 
     try {
-        // Look up user in the "sparky_users" hash
         const user = await redis.hget('sparky_users', username);
 
         if (!user || user.password !== password) {
@@ -21,7 +19,6 @@ export default async function handler(req, res) {
 
         return res.status(200).json({ success: true, role: user.role });
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'DATABASE CONNECTION ERROR' });
+        return res.status(500).json({ error: 'DATABASE OFFLINE' });
     }
 }
