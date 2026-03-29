@@ -12,11 +12,11 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --primary: #3b82f6;
-            --accent: #a855f7;
-            --neon-pink: #ec489a;
-            --success: #4ade80;
-            --bg-dark: #020408;
+            --primary: #00f0ff;
+            --accent: #8a2be2;
+            --neon-pink: #ff007f;
+            --success: #00ff66;
+            --bg-dark: #050505;
         }
 
         body {
@@ -31,23 +31,53 @@
             overflow: hidden;
             perspective: 1000px;
             transition: opacity 0.6s ease-out;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(138, 43, 226, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 240, 255, 0.08), transparent 25%);
         }
         
         body.fade-out { opacity: 0; }
 
-        /* --- SMOOTH BACKGROUND --- */
-        .bg-layer {
+        /* --- VISUAL EFFECTS (Cooler & Optimized) --- */
+        .scanlines {
             position: absolute;
-            top: -50%; left: -50%; width: 200%; height: 200%;
-            background: radial-gradient(circle at center, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
-                        radial-gradient(circle at 20% 30%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.3;
+        }
+
+        .noise {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 49;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Ambient Orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
             z-index: -1;
-            will-change: transform; /* Optimization for mobile */
+            will-change: transform;
+            animation: float 10s infinite alternate ease-in-out;
+        }
+        .orb-1 { width: 300px; height: 300px; background: rgba(0, 240, 255, 0.15); top: -10%; left: -10%; }
+        .orb-2 { width: 400px; height: 400px; background: rgba(255, 0, 127, 0.1); bottom: -20%; right: -10%; animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translateY(0) scale(1); }
+            100% { transform: translateY(30px) scale(1.1); }
         }
 
         @keyframes floatUpFade {
-            0% { opacity: 0; transform: translateY(30px); filter: blur(10px); }
-            100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
 
         .parallax-wrapper {
@@ -71,8 +101,9 @@
             background-clip: text;
             color: transparent;
             margin-bottom: 10px;
-            filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.4));
-            animation: floatUpFade 0.8s cubic-bezier(0.2, 0.9, 0.4, 1) forwards;
+            /* Replaced heavy drop-shadow with performant text-shadow */
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+            animation: floatUpFade 0.6s cubic-bezier(0.2, 0.9, 0.4, 1) forwards;
         }
 
         .subtitle {
@@ -82,29 +113,30 @@
             letter-spacing: 6px;
             margin-bottom: 60px;
             opacity: 0;
-            animation: floatUpFade 0.8s cubic-bezier(0.2, 0.9, 0.4, 1) 0.2s forwards;
+            animation: floatUpFade 0.6s cubic-bezier(0.2, 0.9, 0.4, 1) 0.15s forwards;
         }
 
-        /* --- SIMULATED SCAN BUTTON --- */
+        /* --- HARDWARE ACCELERATED BUTTON --- */
         .auth-container {
             position: relative;
             width: 100%;
             max-width: 320px;
-            height: 80px;
+            height: 75px;
             opacity: 0;
-            animation: floatUpFade 0.8s cubic-bezier(0.2, 0.9, 0.4, 1) 0.4s forwards;
+            animation: floatUpFade 0.6s cubic-bezier(0.2, 0.9, 0.4, 1) 0.3s forwards;
         }
 
         .hold-btn {
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(59, 130, 246, 0.2);
-            border-radius: 20px;
+            background: rgba(10, 15, 25, 0.6); /* Removed heavy backdrop-filter for mobile fps */
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 16px;
             color: var(--primary);
             font-family: 'Orbitron', sans-serif;
             font-size: 0.9rem;
             font-weight: 700;
+            letter-spacing: 1px;
             cursor: pointer;
             overflow: hidden;
             position: relative;
@@ -112,38 +144,55 @@
             align-items: center;
             justify-content: center;
             gap: 15px;
-            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s, background-color 0.3s;
             user-select: none;
-            touch-action: none;
+            touch-action: none; /* Prevents scroll while holding */
+            box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.05);
+            will-change: transform;
         }
 
-        .hold-btn.pressing {
-            transform: scale(0.96);
-            background: rgba(255, 255, 255, 0.05);
-            border-color: var(--neon-pink);
-        }
-
-        /* Progress Bar Animation */
+        /* Progress Bar Animation - 100% GPU Accelerated */
         .scan-fill {
             position: absolute;
-            left: 0; top: 0; height: 100%; width: 0%;
-            background: linear-gradient(90deg, transparent, var(--neon-pink));
-            opacity: 0.6;
+            left: -100%; /* Start outside */
+            top: 0; 
+            height: 100%; 
+            width: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 0, 127, 0.5), var(--neon-pink));
             pointer-events: none;
-            transition: width 0.1s linear;
+            transition: transform 0.2s ease-out; /* Fast reset */
+            will-change: transform;
         }
 
-        .hold-btn i { font-size: 1.4rem; transition: 0.3s; }
+        /* When holding */
+        .hold-btn.pressing {
+            transform: scale(0.95);
+            border-color: var(--neon-pink);
+            background: rgba(255, 0, 127, 0.05);
+            box-shadow: 0 0 20px rgba(255, 0, 127, 0.2), inset 0 0 20px rgba(255, 0, 127, 0.1);
+        }
 
-        /* States */
+        .hold-btn.pressing .scan-fill {
+            transform: translateX(100%);
+            transition: transform 1s linear; /* 1 second fill duration matching JS */
+        }
+
+        .hold-btn i { 
+            font-size: 1.4rem; 
+            z-index: 2; 
+        }
+        
+        .hold-btn span {
+            z-index: 2;
+        }
+
+        /* Success State */
         .hold-btn.success { 
-            background: var(--success); 
-            color: #000; 
+            background: rgba(0, 255, 102, 0.1); 
+            color: var(--success); 
             border-color: var(--success); 
-            transform: scale(1.02);
-            box-shadow: 0 0 30px rgba(74, 222, 128, 0.4);
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 255, 102, 0.3), inset 0 0 15px rgba(0, 255, 102, 0.2);
         }
 
         .hint-text {
@@ -152,13 +201,16 @@
             color: #475569;
             text-transform: uppercase;
             letter-spacing: 2px;
-            transition: 0.3s;
+            transition: color 0.3s;
         }
     </style>
 </head>
 <body>
 
-    <div class="bg-layer" id="bgLayer"></div>
+    <div class="scanlines"></div>
+    <div class="noise"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
 
     <div class="parallax-wrapper" id="contentWrapper">
         <div class="logo">SPARKY OS</div>
@@ -175,84 +227,85 @@
     </div>
 
     <script>
-        const bgLayer = document.getElementById('bgLayer');
         const contentWrapper = document.getElementById('contentWrapper');
         const holdBtn = document.getElementById('holdBtn');
-        const scanFill = document.getElementById('scanFill');
         const btnText = document.getElementById('btnText');
         const authIcon = document.getElementById('authIcon');
         const hintText = document.getElementById('hintText');
 
-        // ------------------------- SMOOTH PARALLAX (Performance Optimized) -------------------------
+        // ------------------------- SMOOTH PARALLAX (Only applied to light elements) -------------------------
         let targetX = 0, targetY = 0;
         let currentX = 0, currentY = 0;
 
         function updateParallax() {
-            currentX += (targetX - currentX) * 0.1;
-            currentY += (targetY - currentY) * 0.1;
+            // Lerping for butter-smooth easing
+            currentX += (targetX - currentX) * 0.08;
+            currentY += (targetY - currentY) * 0.08;
             
-            bgLayer.style.transform = `translate(${currentX * 20}px, ${currentY * 20}px)`;
-            contentWrapper.style.transform = `rotateY(${currentX * 10}deg) rotateX(${-currentY * 10}deg)`;
+            // Only transform the wrapper, separating it from the heavy background
+            contentWrapper.style.transform = `translate3d(${currentX * 10}px, ${currentY * 10}px, 0) rotateY(${currentX * 5}deg) rotateX(${-currentY * 5}deg)`;
             
             requestAnimationFrame(updateParallax);
         }
         updateParallax();
 
+        // Mouse support
         document.addEventListener('mousemove', (e) => {
             targetX = (e.clientX / window.innerWidth - 0.5);
             targetY = (e.clientY / window.innerHeight - 0.5);
         });
 
+        // Mobile Gyroscope support (Optimized)
         window.addEventListener('deviceorientation', (e) => {
             if(e.gamma) {
-                targetX = e.gamma / 45;
-                targetY = e.beta / 45;
+                // Clamp values to prevent crazy flipping
+                let gamma = Math.max(-45, Math.min(45, e.gamma));
+                let beta = Math.max(-45, Math.min(45, e.beta));
+                targetX = gamma / 45;
+                targetY = beta / 45;
             }
         });
 
-        // ------------------------- ANIMATED HOLD LOGIC (Visual Only) -------------------------
-        let holdTimer;
-        let progress = 0;
-        const holdDuration = 1000; // 1 second hold
+        // ------------------------- CSS-DRIVEN ANIMATED LOGIC -------------------------
+        // By relying on CSS transitions for the visual fill, we save immense CPU power on mobile.
+        
+        let holdTimeout;
+        const holdDuration = 1000; // 1 second
         let isAuthorized = false;
 
         function startScan(e) {
             if (isAuthorized) return;
             if (e.cancelable) e.preventDefault();
             
-            progress = 0;
+            // Add class -> triggers CSS transform translateX(100%) which takes exactly 1s
             holdBtn.classList.add('pressing');
             btnText.innerText = "LINKING...";
             authIcon.className = "fa-solid fa-circle-notch fa-spin";
             hintText.innerText = "Reading Neural Patterns...";
+            hintText.style.color = "var(--neon-pink)";
 
-            const startTime = Date.now();
-            holdTimer = setInterval(() => {
-                const elapsed = Date.now() - startTime;
-                progress = (elapsed / holdDuration) * 100;
-                
-                if (progress >= 100) {
-                    clearInterval(holdTimer);
-                    completeAuth();
-                } else {
-                    scanFill.style.width = progress + "%";
-                }
-            }, 16);
+            if (navigator.vibrate) navigator.vibrate(50); // Small tactile click
+
+            // Wait for 1 second to see if they held it long enough
+            holdTimeout = setTimeout(completeAuth, holdDuration);
         }
 
         function cancelScan() {
             if (isAuthorized) return;
-            clearInterval(holdTimer);
+            
+            clearTimeout(holdTimeout); // Cancel the success trigger
+            
+            // Remove class -> CSS transition snaps it back smoothly
             holdBtn.classList.remove('pressing');
-            scanFill.style.width = "0%";
             btnText.innerText = "HOLD TO AUTHORIZE";
             authIcon.className = "fa-solid fa-fingerprint";
             hintText.innerText = "Encryption Handshake Required";
+            hintText.style.color = "#475569";
         }
 
         function completeAuth() {
             isAuthorized = true;
-            scanFill.style.width = "100%";
+            
             holdBtn.classList.remove('pressing');
             holdBtn.classList.add('success');
             
@@ -261,7 +314,7 @@
             hintText.innerText = "Welcome back, Operator.";
             hintText.style.color = "var(--success)";
 
-            if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+            if (navigator.vibrate) navigator.vibrate([50, 30, 100]); // Success vibration
 
             // Smooth exit
             setTimeout(() => {
@@ -272,12 +325,14 @@
             }, 1000);
         }
 
-        // Event Listeners
+        // Event Listeners for Desktop & Mobile
         holdBtn.addEventListener('mousedown', startScan);
         window.addEventListener('mouseup', cancelScan);
+        holdBtn.addEventListener('mouseleave', cancelScan);
         
         holdBtn.addEventListener('touchstart', startScan, {passive: false});
         holdBtn.addEventListener('touchend', cancelScan);
+        holdBtn.addEventListener('touchcancel', cancelScan);
     </script>
 </body>
 </html>
