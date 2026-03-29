@@ -6,6 +6,10 @@ const path = require('path');
 
 const app = express();
 
+// --- CRITICAL VERCEL FIX ---
+// Tells Express to trust Vercel's proxy so it actually saves your login cookie!
+app.set('trust proxy', 1);
+
 // Enable CORS with credentials (cookies)
 app.use(cors({
     origin: true,
@@ -20,7 +24,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: process.env.NODE_ENV === 'production', // true if using HTTPS on Vercel
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 1 day
     }
