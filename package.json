@@ -1,12 +1,11 @@
 {
-  "name": "sparky-os-core",
-  "version": "2.1.0",
+  "name": "sparky-os-neural-link",
+  "version": "3.0.0",
   "type": "module",
   "dependencies": {
-    "@upstash/redis": "^1.34.4",
-    "express": "^4.18.2"
+    "@upstash/redis": "latest"
   },
   "engines": {
-    "node": ">=18.x"
+    "node": "18.x"
   }
 }
