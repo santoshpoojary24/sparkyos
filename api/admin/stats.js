@@ -1,5 +1,7 @@
 import { kv } from '@vercel/kv';
-
+process.env.KV_URL = process.env.STORAGE_KV_URL;
+process.env.KV_REST_API_URL = process.env.STORAGE_KV_REST_API_URL;
+process.env.KV_REST_API_TOKEN = process.env.STORAGE_KV_REST_API_TOKEN;
 export default async function handler(req, res) {
     try {
         // 1. Fetch all users from your Upstash Cloud DB
