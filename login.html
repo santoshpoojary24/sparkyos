@@ -1,409 +1,251 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sparky OS | System Authorization</title>
+const express = require('express');
+const cors = require('cors');
+const session = require('express-session');
+const os = require('os');
+const path = require('path');
+
+const app = express();
+
+// --- CRITICAL VERCEL FIX ---
+// Tells Express to trust Vercel's proxy so it actually saves your login cookie!
+app.set('trust proxy', 1);
+
+// Enable CORS with credentials (cookies)
+app.use(cors({
+    origin: true,
+    credentials: true
+}));
+app.use(express.json());
+app.use(express.static(__dirname));
+
+// Session configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'sparky-secret-key-change-this',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // true if using HTTPS on Vercel
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
+    }
+}));
+
+
+// ========== SYSTEM STATE (In-Memory) ==========
+// NOTE: On Vercel, this data will reset when the serverless function sleeps.
+
+let NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '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';
+const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+let isMaintenanceMode = false;
+
+// Default Users Array
+let users = [
+    { username: 'admin', password: 'sparky123', role: 'admin' },
+    { username: 'user',  password: 'user123',   role: 'user' }
+];
+
+let stats = { totalConversations: 0, totalMessages: 0 };
+const sessionActivity = new Map();
+
+// Default Security Logs Array
+let securityLogs = [
+    { time: new Date().toLocaleTimeString(), type: 'System Boot', ip: 'localhost', details: 'Sparky OS Core Initialized (No DB Mode).' }
+];
+
+
+// ========== REAL-TIME CPU CALCULATOR ==========
+let currentCpuLoad = 0;
+function getCPUInfo() {
+    const cpus = os.cpus();
+    let user = 0, nice = 0, sys = 0, idle = 0, irq = 0;
+    for (let cpu in cpus) {
+        user += cpus[cpu].times.user; nice += cpus[cpu].times.nice;
+        sys += cpus[cpu].times.sys; idle += cpus[cpu].times.idle; irq += cpus[cpu].times.irq;
+    }
+    return { idle, total: user + nice + sys + idle + irq };
+}
+let startMeasure = getCPUInfo();
+setInterval(() => {
+    const endMeasure = getCPUInfo();
+    const idleDifference = endMeasure.idle - startMeasure.idle;
+    const totalDifference = endMeasure.total - startMeasure.total;
+    currentCpuLoad = 100 - Math.floor(100 * idleDifference / totalDifference);
+    startMeasure = endMeasure;
+}, 1000);
+
+
+// ========== HELPER FUNCTIONS ==========
+function addLog(type, ip, details) {
+    securityLogs.unshift({ time: new Date().toLocaleTimeString(), type, ip, details });
+    if (securityLogs.length > 20) securityLogs.pop(); // Keep only the last 20 logs
+}
+
+function formatUptime(seconds) {
+    const h = Math.floor(seconds / 3600); const m = Math.floor((seconds % 3600) / 60); const s = Math.floor(seconds % 60);
+    return `${h}h ${m}m ${s}s`;
+}
+
+function updateActiveSession(sessionId) {
+    sessionActivity.set(sessionId, Date.now());
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    for (let [id, ts] of sessionActivity.entries()) { if (ts < oneHourAgo) sessionActivity.delete(id); }
+}
+
+
+// ========== AUTH ENDPOINTS ==========
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    const user = users.find(u => u.username === username);
     
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    if (user && user.password === password) {
+        if (isMaintenanceMode && user.role !== 'admin') {
+            addLog('Auth Blocked', req.ip || 'unknown', `User '${username}' blocked by Maintenance Mode.`);
+            return res.status(403).json({ error: 'SYSTEM IN MAINTENANCE. ADMIN ACCESS ONLY.' });
+        }
+
+        req.session.user = { username, role: user.role };
+        addLog('Auth Success', req.ip || 'unknown', `User '${username}' logged into system.`);
+        return res.json({ success: true, role: user.role });
+    }
     
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+    addLog('Auth Failed', req.ip || 'unknown', `Failed login attempt for ID: '${username}'.`);
+    res.status(401).json({ error: 'Invalid credentials' });
+});
 
-        :root {
-            --bg-deep: #020408;
-            --glass-bg: rgba(10, 15, 30, 0.7);
-            --glass-border: rgba(59, 130, 246, 0.3);
-            --text-main: #eef5ff;
-            --text-muted: #a0b3d9;
-            --accent-glow: #3b82f6;
-            --accent-secondary: #a855f7;
-            --accent-pink: #ec489a;
-            --danger: #ef4444;
-            --bg-gradient: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
-                           radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 40%);
-        }
+app.get('/api/check-auth', (req, res) => {
+    if (req.session.user) res.json({ authenticated: true });
+    else res.status(401).json({ authenticated: false });
+});
 
-        body {
-            background-color: var(--bg-deep);
-            background-image: var(--bg-gradient);
-            font-family: 'Inter', sans-serif;
-            height: 100dvh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-main);
-            overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
+app.get('/api/user', (req, res) => {
+    if (req.session.user) res.json({ authenticated: true, user: req.session.user });
+    else res.status(401).json({ authenticated: false });
+});
 
-        /* --- AMBIENT MATRIX RAIN --- */
-        #matrixCanvas {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 1; pointer-events: none; opacity: 0.15;
-        }
-
-        /* --- TELEMETRY OVERLAY --- */
-        .telemetry-overlay {
-            position: fixed; bottom: 20px; left: 24px; width: 280px;
-            font-family: 'Orbitron', monospace; font-size: 0.65rem; color: var(--accent-glow);
-            z-index: 5; pointer-events: none; opacity: 0.6;
-            text-shadow: 0 0 5px rgba(59, 130, 246, 0.5); text-align: left;
-            line-height: 1.6; text-transform: uppercase;
-        }
-        .telemetry-line { animation: fadeLineIn 0.3s ease-out; }
-        @keyframes fadeLineIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-
-        .mouse-orb {
-            position: fixed; width: 400px; height: 400px;
-            background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(139,92,246,0) 70%);
-            border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(50px);
-            transition: transform 0.1s ease-out; will-change: transform;
-        }
-
-        .login-container {
-            position: relative; z-index: 10; background: var(--glass-bg);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border); border-radius: 24px;
-            padding: 45px 36px 30px; width: 100%; max-width: 420px; text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-            animation: floatIn 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-10px); }
-            40%, 80% { transform: translateX(10px); }
-        }
-        .shake { animation: shake 0.4s ease-in-out; border-color: var(--accent-pink) !important; }
-
-        /* --- DYNAMIC LOCKOUT STATE --- */
-        .lockout { animation: pulseRed 2s infinite; border-color: var(--danger) !important; }
-        @keyframes pulseRed { 
-            0% { box-shadow: 0 0 20px rgba(239,68,68,0.1); } 
-            50% { box-shadow: 0 0 40px rgba(239,68,68,0.5); } 
-            100% { box-shadow: 0 0 20px rgba(239,68,68,0.1); } 
-        }
-
-        @keyframes floatIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-
-        .back-link {
-            position: absolute; top: 20px; left: 24px; color: var(--text-muted);
-            text-decoration: none; font-family: 'Orbitron', sans-serif; font-size: 0.65rem;
-            letter-spacing: 1px; display: flex; align-items: center; gap: 6px;
-            transition: 0.3s; opacity: 0.7;
-        }
-        .back-link:hover { color: var(--accent-glow); opacity: 1; }
-
-        .logo-main {
-            font-family: 'Orbitron', sans-serif; font-size: 2.2rem; font-weight: 800; letter-spacing: 2px;
-            background: linear-gradient(135deg, var(--accent-glow), var(--accent-secondary));
-            -webkit-background-clip: text; background-clip: text; color: transparent;
-            display: flex; align-items: center; justify-content: center; gap: 12px;
-        }
-
-        .logo-sub {
-            font-size: 0.75rem; font-weight: 600; color: var(--accent-pink); letter-spacing: 3px;
-            text-transform: uppercase; background: rgba(236, 72, 154, 0.1);
-            display: inline-block; padding: 6px 16px; border-radius: 40px;
-            border: 1px solid rgba(236, 72, 154, 0.3); margin: 12px 0 32px;
-        }
-
-        .input-group { margin-bottom: 24px; text-align: left; }
-        label { display: block; font-family: 'Orbitron', sans-serif; font-size: 0.7rem; letter-spacing: 1px; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; }
-
-        .input-wrapper { position: relative; }
-        .input-wrapper i.left-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.9rem; transition: 0.3s; }
-        
-        /* --- CYBERNETIC EYE TOGGLE --- */
-        .eye-toggle { 
-            position: absolute; right: 16px; top: 50%; transform: translateY(-50%); 
-            color: var(--text-muted); font-size: 0.9rem; cursor: pointer; transition: 0.3s; 
-        }
-        .eye-toggle:hover { color: var(--text-main); }
-        .eye-toggle.active { color: var(--accent-pink); text-shadow: 0 0 10px var(--accent-pink); }
-
-        input {
-            width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--glass-border);
-            border-radius: 12px; padding: 14px 44px; /* Padding accommodates left and right icons */
-            color: var(--text-main); font-size: 16px; font-family: 'Inter', sans-serif; 
-            outline: none; transition: all 0.3s;
-        }
-        input:focus { border-color: var(--accent-glow); box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); background: rgba(0, 0, 0, 0.5); }
-        input:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        button {
-            width: 100%; background: rgba(59, 130, 246, 0.1); border: 1px solid var(--accent-glow);
-            border-radius: 12px; padding: 16px; font-family: 'Orbitron', sans-serif;
-            font-weight: 700; letter-spacing: 2px; color: var(--accent-glow);
-            font-size: 0.9rem; cursor: pointer; transition: all 0.3s;
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-        }
-        button:hover:not(:disabled) { background: var(--accent-glow); color: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4); }
-        button:disabled { opacity: 0.6; cursor: not-allowed; border-color: var(--danger); color: var(--danger); background: rgba(239, 68, 68, 0.1); }
-
-        /* --- FEATURE: CONTACT FOOTER --- */
-        .contact-gate {
-            margin-top: 32px;
-            padding-top: 24px;
-            border-top: 1px dashed rgba(59, 130, 246, 0.2);
-            text-align: left;
-        }
-        .contact-gate p { font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px; }
-        .contact-links { display: flex; flex-direction: column; gap: 8px; }
-        .contact-item { display: flex; align-items: center; gap: 10px; color: var(--accent-glow); text-decoration: none; font-size: 0.75rem; font-family: 'Orbitron', sans-serif; transition: 0.2s; }
-        .contact-item:hover { color: #fff; transform: translateX(5px); }
-        .contact-item i { width: 16px; text-align: center; }
-
-        .sync-bar-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 0 0 24px 24px; overflow: hidden; display: none; }
-        .sync-bar-fill { height: 100%; width: 0%; background: var(--accent-glow); box-shadow: 0 0 10px var(--accent-glow); }
-        .error { color: var(--accent-pink); font-size: 0.8rem; margin-top: 16px; font-family: 'Orbitron'; min-height: 20px; }
-
-        @media (max-width: 480px) {
-            .login-container { width: 92%; padding: 40px 24px 24px; }
-            .logo-main { font-size: 1.8rem; }
-            .telemetry-overlay { display: none; } /* Hide telemetry on small screens to save space */
-        }
-    </style>
-</head>
-<body>
-
-    <canvas id="matrixCanvas"></canvas>
-    <div class="mouse-orb" id="mouseOrb"></div>
-    <div class="telemetry-overlay" id="telemetryBox"></div>
-
-    <div class="login-container" id="loginBox">
-        <a href="in.html" class="back-link"><i class="fa-solid fa-lock"></i> LOCK</a>
-
-        <div class="logo-main"><i class="fa-solid fa-atom"></i> SPARKY</div>
-        <div class="logo-sub" id="scrambleText">OS AUTHORIZATION</div>
-        
-        <form id="loginForm">
-            <div class="input-group">
-                <label>System ID</label>
-                <div class="input-wrapper">
-                    <input type="text" id="username" placeholder="Enter Identity" required autofocus autocomplete="off">
-                    <i class="fa-solid fa-user left-icon"></i>
-                </div>
-            </div>
-            
-            <div class="input-group">
-                <label>Security Key</label>
-                <div class="input-wrapper">
-                    <input type="password" id="password" placeholder="••••••••" required>
-                    <i class="fa-solid fa-lock left-icon"></i>
-                    <i class="fa-solid fa-eye eye-toggle" id="togglePassword" title="Toggle Visibility"></i>
-                </div>
-            </div>
-            
-            <button type="submit" id="submitBtn"><i class="fa-solid fa-right-to-bracket"></i> INITIALIZE LINK</button>
-            <div id="errorMsg" class="error"></div>
-        </form>
-
-        <div class="contact-gate">
-            <p>Access restricted. If you do not have authorized credentials, contact system administration:</p>
-            <div class="contact-links">
-                <a href="https://www.instagram.com/xxiv.sparky?igsh=MXRteGR2enZ4bHhqcw%3D%3D&utm_source=qr" class="contact-item" target="_blank">
-                    <i class="fa-brands fa-instagram"></i> @xxiv.sparky
-                </a>
-                <a href="mailto:santoshpoojary2004@gmail.com" class="contact-item">
-                    <i class="fa-solid fa-envelope"></i> santoshpoojary2004@gmail.com
-                </a>
-            </div>
-        </div>
-
-        <div class="sync-bar-container" id="syncBarContainer">
-            <div class="sync-bar-fill" id="syncBarFill"></div>
-        </div>
-    </div>
-
-    <script>
-        // --- AMBIENT MATRIX RAIN ---
-        const mCanvas = document.getElementById('matrixCanvas');
-        const mCtx = mCanvas.getContext('2d');
-        
-        function resizeMatrix() { mCanvas.width = window.innerWidth; mCanvas.height = window.innerHeight; }
-        window.addEventListener('resize', resizeMatrix);
-        resizeMatrix();
-
-        const letters = '01ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*';
-        const fontSize = 14;
-        let columns = mCanvas.width / fontSize;
-        let drops = [];
-        for(let i = 0; i < columns; i++) drops[i] = Math.random() * -100; // Staggered start
-
-        function drawMatrix() {
-            mCtx.fillStyle = 'rgba(2, 4, 8, 0.1)'; // Fade effect
-            mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
-            mCtx.fillStyle = '#3b82f6'; // Deep blue to match glow
-            mCtx.font = fontSize + 'px monospace';
-            
-            for(let i = 0; i < drops.length; i++) {
-                const text = letters[Math.floor(Math.random() * letters.length)];
-                mCtx.fillText(text, i * fontSize, drops[i] * fontSize);
-                if(drops[i] * fontSize > mCanvas.height && Math.random() > 0.975) drops[i] = 0;
-                drops[i]++;
-            }
-        }
-        setInterval(drawMatrix, 50);
-
-        // --- LIVE NETWORK TELEMETRY ---
-        const telemetryBox = document.getElementById('telemetryBox');
-        const telemetryPhrases = [
-            "Establishing secure tunnel...", "Bypassing node firewalls...", "Verifying biometric hash...", 
-            "Checking admin clearance...", "Pinging DeepSeek cluster...", "Routing through proxies...", 
-            "Decrypting gateway payload...", "System nominal.", "Awaiting credential sync..."
-        ];
-        let tLines = ["> SYSTEM BOOT SEQUENCE INITIATED..."];
-        
-        setInterval(() => {
-            tLines.push("> " + telemetryPhrases[Math.floor(Math.random() * telemetryPhrases.length)]);
-            if(tLines.length > 6) tLines.shift();
-            telemetryBox.innerHTML = tLines.map(l => `<div class="telemetry-line">${l}</div>`).join('');
-        }, 2800);
+app.post('/api/logout', (req, res) => {
+    const user = req.session.user ? req.session.user.username : 'Unknown';
+    req.session.destroy(err => {
+        if (err) return res.status(500).json({ error: 'Logout failed' });
+        addLog('Session Closed', req.ip || 'unknown', `User '${user}' de-authorized.`);
+        res.json({ success: true });
+    });
+});
 
 
-        // --- MOUSE ORB ---
-        const orb = document.getElementById('mouseOrb');
-        const updateOrb = (e) => {
-            const x = e.clientX || (e.touches && e.touches[0].clientX);
-            const y = e.clientY || (e.touches && e.touches[0].clientY);
-            if(x && y) orb.style.transform = `translate(${x - 200}px, ${y - 200}px)`;
-        };
-        document.addEventListener('mousemove', updateOrb);
-        document.addEventListener('touchmove', updateOrb);
+// ========== NVIDIA DEEPSEEK CHAT ENDPOINT ==========
+app.post('/api/chat', async (req, res) => {
+    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    if (isMaintenanceMode && req.session.user.role !== 'admin') return res.status(403).json({ error: 'System down for maintenance.' });
 
-        // --- TEXT SCRAMBLE ---
-        const scramble = (element, finalWord) => {
-            const chars = '!<>-_\\/[]{}—=+*^?#________';
-            let iteration = 0;
-            const interval = setInterval(() => {
-                element.innerText = finalWord.split("").map((letter, index) => {
-                    if(index < iteration) return finalWord[index];
-                    return chars[Math.floor(Math.random() * chars.length)];
-                }).join("");
-                if(iteration >= finalWord.length) clearInterval(interval);
-                iteration += 1 / 3;
-            }, 30);
-        };
-        window.onload = () => scramble(document.getElementById('scrambleText'), "OS AUTHORIZATION");
+    stats.totalMessages++;
+    updateActiveSession(req.sessionID);
 
-        // --- CYBERNETIC EYE (PASSWORD TOGGLE) ---
-        const togglePassword = document.getElementById('togglePassword');
-        const passwordInput = document.getElementById('password');
-        
-        togglePassword.addEventListener('click', () => {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            togglePassword.classList.toggle('fa-eye');
-            togglePassword.classList.toggle('fa-eye-slash');
-            togglePassword.classList.toggle('active');
+    try {
+        const response = await fetch(NVIDIA_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${NVIDIA_API_KEY}` },
+            body: JSON.stringify(req.body)
         });
 
-        // --- LOGIN LOGIC WITH LOCKOUT TIMER ---
-        let failedAttempts = 0;
-        let isLockedOut = false;
+        if (!response.ok) {
+            const err = await response.text();
+            addLog('API Error', 'Nvidia Cluster', `Status ${response.status}: ${err.substring(0,50)}`);
+            return res.status(response.status).json({ error: err });
+        }
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (isLockedOut) return;
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
 
-            const loginBox = document.getElementById('loginBox');
-            const submitBtn = document.getElementById('submitBtn');
-            const errorDiv = document.getElementById('errorMsg');
-            const syncBar = document.getElementById('syncBarContainer');
-            const syncFill = document.getElementById('syncBarFill');
-            const usernameInput = document.getElementById('username');
+        const reader = response.body.getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            res.write(value);
+        }
+        res.end();
+    } catch (error) {
+        addLog('System Error', 'Local Node', error.message);
+        res.status(500).json({ error: 'Server Error communicating with Nvidia' });
+    }
+});
 
-            loginBox.classList.remove('shake');
-            errorDiv.textContent = '';
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> SYNCING...';
-            
-            syncBar.style.display = 'block';
-            syncFill.style.transition = 'width 1.5s ease-in-out';
-            setTimeout(() => syncFill.style.width = '100%', 10);
 
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: usernameInput.value.trim(), password: passwordInput.value }),
-                    credentials: 'include'
-                });
+// ========== REAL ADMIN ENDPOINTS ==========
+const requireAdmin = (req, res, next) => {
+    if (!req.session.user || req.session.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden. Root access required.' });
+    next();
+};
 
-                if (res.ok) {
-                    submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> SYNC COMPLETE';
-                    submitBtn.style.background = '#4ade80';
-                    submitBtn.style.borderColor = '#4ade80';
-                    submitBtn.style.color = '#fff';
-                    setTimeout(() => window.location.href = '/', 600);
-                } else if (res.status === 504 || res.status === 502) {
-                    triggerError('SYSTEM WAKING UP. PLEASE RETRY.');
-                } else {
-                    handleFailedAttempt();
-                }
-            } catch (err) {
-                handleFailedAttempt(true); // Treat total network failure as a failed attempt to prevent spam
-            }
+app.post('/api/admin/maintenance', requireAdmin, (req, res) => {
+    isMaintenanceMode = req.body.active === true;
+    const action = isMaintenanceMode ? 'ENGAGED. Standard users locked out.' : 'LIFTED. System open.';
+    addLog('System Alert', req.ip, `Maintenance Mode ${action}`);
+    res.json({ success: true, maintenanceMode: isMaintenanceMode });
+});
 
-            function handleFailedAttempt(isNetworkError = false) {
-                failedAttempts++;
-                syncFill.style.width = '0%';
-                
-                if (failedAttempts >= 3) {
-                    initiateLockout();
-                } else {
-                    triggerError(isNetworkError ? 'NODE CONNECTION FAILED. RETRY.' : 'ACCESS DENIED');
-                }
-            }
+app.get('/api/admin/stats', requireAdmin, (req, res) => {
+    const totalRam = os.totalmem(); const freeRam = os.freemem();
+    const ramPercent = Math.round(((totalRam - freeRam) / totalRam) * 100);
 
-            function triggerError(msg) {
-                setTimeout(() => {
-                    loginBox.classList.add('shake');
-                    errorDiv.innerHTML = msg;
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> INITIALIZE LINK';
-                }, 800);
-            }
+    res.json({
+        cpu: currentCpuLoad, ram: ramPercent, uptime: formatUptime(process.uptime()),
+        totalConversations: stats.totalConversations, totalMessages: stats.totalMessages,
+        activeSessions: sessionActivity.size, maintenanceMode: isMaintenanceMode,
+        logs: securityLogs, 
+        users: users.map(u => ({ username: u.username, role: u.role })) // Hide passwords from frontend
+    });
+});
 
-            function initiateLockout() {
-                isLockedOut = true;
-                loginBox.classList.add('lockout');
-                errorDiv.innerHTML = 'SECURITY LOCKOUT. INTRUSION DETECTED.';
-                usernameInput.disabled = true;
-                passwordInput.disabled = true;
-                
-                let countdown = 15;
-                submitBtn.innerHTML = `<i class="fa-solid fa-lock"></i> LOCKED (${countdown}s)`;
-                
-                // Add to telemetry
-                tLines.push("> <span style='color: var(--danger);'>WARNING: MULTIPLE FAILED LOGINS DETECTED.</span>");
-                tLines.push("> <span style='color: var(--danger);'>INITIATING PROTOCOL ZERO.</span>");
+app.post('/api/admin/user', requireAdmin, (req, res) => {
+    const { username, password, role } = req.body;
+    if (users.find(u => u.username === username)) return res.status(400).json({ error: 'Identity already exists.' });
 
-                const lockInterval = setInterval(() => {
-                    countdown--;
-                    submitBtn.innerHTML = `<i class="fa-solid fa-lock"></i> LOCKED (${countdown}s)`;
-                    
-                    if (countdown <= 0) {
-                        clearInterval(lockInterval);
-                        isLockedOut = false;
-                        failedAttempts = 0;
-                        
-                        loginBox.classList.remove('lockout');
-                        usernameInput.disabled = false;
-                        passwordInput.disabled = false;
-                        submitBtn.disabled = false;
-                        
-                        submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> INITIALIZE LINK';
-                        errorDiv.innerHTML = '<span style="color: var(--success);">LOCKOUT LIFTED. RETRY.</span>';
-                        tLines.push("> SYSTEM LOCKOUT CLEARED.");
-                    }
-                }, 1000);
-            }
-        });
-    </script>
-</body>
-</html>
+    users.push({ username, password, role });
+    addLog('User Created', req.ip, `Admin generated new identity: '${username}'.`);
+    res.json({ success: true });
+});
+
+app.put('/api/admin/user/:username', requireAdmin, (req, res) => {
+    const { username } = req.params; const { password, role } = req.body;
+    if (username === 'admin' && role !== 'admin') return res.status(400).json({ error: 'Cannot demote root.' });
+    
+    let user = users.find(u => u.username === username);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    if (password) user.password = password;
+    if (role) user.role = role;
+    
+    addLog('User Updated', req.ip, `Admin modified identity: '${username}'.`);
+    res.json({ success: true });
+});
+
+app.delete('/api/admin/user/:username', requireAdmin, (req, res) => {
+    const { username } = req.params;
+    if (username === 'admin') return res.status(400).json({ error: 'Cannot delete root.' });
+    
+    users = users.filter(u => u.username !== username);
+    addLog('User Deleted', req.ip, `Admin erased identity: '${username}'.`);
+    res.json({ success: true });
+});
+
+app.post('/api/admin/apikey', requireAdmin, (req, res) => {
+    if(req.body.newKey) {
+        NVIDIA_API_KEY = req.body.newKey;
+        addLog('Config Update', req.ip, 'Nvidia API Key was modified.');
+        res.json({ success: true });
+    } else res.status(400).json({ error: "No key provided." });
+});
+
+app.post('/api/admin/reboot', requireAdmin, (req, res) => {
+    addLog('System Reboot', req.ip, 'Root Admin triggered manual core reboot.');
+    res.json({ success: true, message: "Initiating kill sequence..." });
+    if (process.env.NODE_ENV !== 'production') setTimeout(() => process.exit(0), 1500);
+});
+
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => console.log(`🚀 Sparky Core running in Memory Mode on http://localhost:${PORT}`));
+}
+
+module.exports = app;
