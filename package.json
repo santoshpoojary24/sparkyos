@@ -1,6 +1,6 @@
 {
-  "name": "sparky-os-neural-link",
-  "version": "3.0.0",
+  "name": "sparky-os-cloud",
+  "version": "4.0.0",
   "type": "module",
   "dependencies": {
     "@upstash/redis": "latest"
