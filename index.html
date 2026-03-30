@@ -31,6 +31,38 @@
             --blur-intensity: blur(25px);
         }
 
+        /* --- LIGHT MODE (AURORA THEME) --- */
+        [data-theme="aurora"] {
+            --bg-deep: #f0f4fa;
+            --sidebar-glass: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(59, 130, 246, 0.3);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --msg-ai: rgba(255, 255, 255, 0.9);
+            --accent-glow: #3b82f6; 
+            --shadow-float: 0 10px 25px rgba(0, 0, 0, 0.05), inset 0 0 20px rgba(59, 130, 246, 0.05);
+            --code-bg: #e2e8f0;
+            --code-text: #1e293b;
+            --hover-bg: rgba(59, 130, 246, 0.1);
+        }
+
+        /* Adjustments specifically for Aurora mode elements */
+        [data-theme="aurora"] body {
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
+                linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
+        }
+        [data-theme="aurora"] .logo-main::before, [data-theme="aurora"] .logo-main::after { background: var(--bg-deep); }
+        [data-theme="aurora"] .tool-btn { background: rgba(255, 255, 255, 0.7); color: #475569; }
+        [data-theme="aurora"] .floating-input-form { background: rgba(255, 255, 255, 0.85); box-shadow: 0 15px 40px rgba(0,0,0,0.08), inset 0 0 15px rgba(59,130,246,0.1); }
+        [data-theme="aurora"] .prompt-input { color: #1e293b; }
+        [data-theme="aurora"] .prompt-input::placeholder { color: #94a3b8; }
+        [data-theme="aurora"] .history-item { color: #475569; }
+        [data-theme="aurora"] .workspace-header { background: linear-gradient(to bottom, rgba(240,244,250,0.95), transparent); }
+        [data-theme="aurora"] .input-zone { background: linear-gradient(to top, rgba(240,244,250,1) 70%, transparent); }
+        [data-theme="aurora"] .send-action:disabled { background: #cbd5e1; color: #64748b; }
+
         body {
             background-color: var(--bg-deep);
             color: var(--text-main);
@@ -44,6 +76,7 @@
                 linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
             background-size: 100% 100%, 40px 40px, 40px 40px;
+            transition: background-color 0.4s ease, color 0.4s ease;
         }
 
         button, a, .history-item { touch-action: manipulation; cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -61,7 +94,7 @@
         .glass-sidebar { 
             width: 290px; flex-shrink: 0; background: var(--sidebar-glass); backdrop-filter: var(--blur-intensity); 
             border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; padding: 28px 20px; 
-            transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1), margin 0.4s ease; z-index: 50; 
+            transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1), margin 0.4s ease, background 0.4s ease; z-index: 50; 
             box-shadow: 15px 0 50px rgba(0,0,0,0.8); height: 100dvh; overflow-y: auto; overflow-x: hidden;
         }
         .glass-sidebar::-webkit-scrollbar { width: 3px; }
@@ -83,7 +116,7 @@
         }
         .logo-main::before, .logo-main::after { 
             content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            background: var(--bg-deep); color: #fff; z-index: -1; overflow: hidden; pointer-events: none; 
+            background: var(--bg-deep); color: #fff; z-index: -1; overflow: hidden; pointer-events: none; transition: background 0.4s;
         }
         .logo-main:hover::before { 
             left: 4px; text-shadow: -3px 0 var(--accent-pink); 
@@ -150,7 +183,7 @@
 
         /* --- CHAT WORKSPACE --- */
         .chat-workspace { flex: 1; display: flex; flex-direction: column; position: relative; min-width: 0; z-index: 20; }
-        .workspace-header { padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; z-index: 20; background: linear-gradient(to bottom, rgba(2,4,8,0.95), transparent); }
+        .workspace-header { padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; z-index: 20; background: linear-gradient(to bottom, rgba(2,4,8,0.95), transparent); transition: background 0.4s; }
         
         .tool-btn { 
             background: rgba(10, 15, 30, 0.6); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); 
@@ -177,11 +210,11 @@
         .ai-message { align-self: flex-start; }
         .message-bubble { padding: 18px 26px; border-radius: 16px; line-height: 1.6; font-size: 0.95rem; box-shadow: var(--shadow-float); backdrop-filter: blur(15px); border: 1px solid transparent; word-wrap: break-word; letter-spacing: 0.3px; position: relative; }
         .user-message .message-bubble { background: var(--msg-user); color: white; border-bottom-right-radius: 4px; border-top-right-radius: 4px; box-shadow: 0 10px 30px rgba(0, 240, 255, 0.25); }
-        .ai-message .message-bubble { background: var(--msg-ai); border-color: rgba(0, 240, 255, 0.3); border-bottom-left-radius: 4px; border-top-left-radius: 4px; border-left: 3px solid var(--accent-glow); }
+        .ai-message .message-bubble { background: var(--msg-ai); border-color: rgba(0, 240, 255, 0.3); border-bottom-left-radius: 4px; border-top-left-radius: 4px; border-left: 3px solid var(--accent-glow); transition: background 0.4s; }
         
-        .ai-message pre { background: var(--code-bg); padding: 18px; border-radius: 8px; overflow-x: auto; margin: 15px 0; border: 1px solid rgba(0, 240, 255, 0.2); -webkit-overflow-scrolling: touch; box-shadow: inset 0 0 20px rgba(0,0,0,0.9); position: relative; }
+        .ai-message pre { background: var(--code-bg); padding: 18px; border-radius: 8px; overflow-x: auto; margin: 15px 0; border: 1px solid rgba(0, 240, 255, 0.2); -webkit-overflow-scrolling: touch; box-shadow: inset 0 0 20px rgba(0,0,0,0.9); position: relative; transition: background 0.4s; }
         .ai-message code { font-family: 'Courier New', Courier, monospace; font-size: 0.9em; background: rgba(0,0,0,0.5); padding: 3px 6px; border-radius: 4px; color: var(--accent-glow); }
-        .ai-message pre code { background: transparent; padding: 0; color: #e2e8f0; }
+        .ai-message pre code { background: transparent; padding: 0; color: var(--code-text); }
         .copy-code-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,240,255,0.08); border: 1px solid rgba(0,240,255,0.35); color: var(--accent-glow); border-radius: 6px; padding: 4px 10px; font-size: 0.7rem; cursor: pointer; font-family: 'Orbitron', sans-serif; letter-spacing: 1px; transition: all 0.3s; z-index: 10; }
         .copy-code-btn:hover { background: rgba(0,240,255,0.25); box-shadow: 0 0 10px rgba(0,240,255,0.4); }
         .copy-code-btn.copied { background: rgba(0,255,100,0.12); border-color: rgba(0,255,100,0.5); color: #00ff64; }
@@ -203,7 +236,7 @@
         @keyframes dotBlink { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
 
         /* --- INPUT ZONE & ANIMATED SEARCH BAR --- */
-        .input-zone { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 30px 30px; background: linear-gradient(to top, rgba(2,4,8,1) 70%, transparent); z-index: 100; }
+        .input-zone { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 30px 30px; background: linear-gradient(to top, rgba(2,4,8,1) 70%, transparent); z-index: 100; transition: background 0.4s; }
         
         @keyframes borderPulse {
             0% { box-shadow: 0 15px 40px rgba(0,0,0,0.8), 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 240, 255, 0.05); }
@@ -234,7 +267,7 @@
         }
 
         .input-row { display: flex; gap: 14px; align-items: flex-end; position: relative; z-index: 2; }
-        .prompt-input { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-size: 16px; resize: none; max-height: 150px; padding: 14px 10px; font-family: 'Inter', sans-serif; width: 100%; line-height: 1.5; }
+        .prompt-input { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-size: 16px; resize: none; max-height: 150px; padding: 14px 10px; font-family: 'Inter', sans-serif; width: 100%; line-height: 1.5; transition: color 0.4s; }
         .prompt-input::placeholder { color: #475569; transition: color 0.3s; }
         .prompt-input:focus::placeholder { color: var(--accent-glow); opacity: 0.5; }
         
@@ -250,7 +283,7 @@
         .send-action::after { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; background: rgba(255,255,255,0.8); border-radius: 50%; transform: translate(-50%, -50%); opacity: 0; transition: width 0.3s, height 0.3s, opacity 0.3s; }
         .send-action:not(:disabled):active::after { width: 150px; height: 150px; opacity: 1; transition: 0s; }
         @media (hover: hover) { .send-action:hover:not(:disabled) { transform: scale(1.15) rotate(-10deg); box-shadow: 0 0 30px rgba(0, 240, 255, 0.8); background: #fff; } }
-        .send-action:disabled { background: #1e293b; color: #94a3b8; box-shadow: none; animation: none; cursor: not-allowed; }
+        .send-action:disabled { background: #1e293b; color: #94a3b8; box-shadow: none; animation: none; cursor: not-allowed; transition: background 0.4s, color 0.4s; }
         
         .stop-action { background: rgba(255,0,85,0.1); color: var(--accent-pink); border: 1px solid var(--accent-pink); border-radius: 14px; width: 48px; height: 48px; justify-content: center; align-items: center; display: none; transition: 0.3s; flex-shrink: 0; font-size: 1.2rem; box-shadow: 0 0 15px rgba(255,0,85,0.3); }
         @media (hover: hover) { .stop-action:hover { background: var(--accent-pink); color: #fff; box-shadow: 0 0 30px rgba(255,0,85,0.8); transform: scale(1.1); } }
@@ -272,8 +305,8 @@
         @keyframes fadeInState { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .empty-icon { font-size: 3.5rem; color: var(--accent-glow); margin-bottom: 25px; filter: drop-shadow(0 0 20px var(--accent-glow)); animation: pulseNode 3s infinite alternate ease-in-out; }
         @keyframes pulseNode { 0% { transform: scale(0.95); opacity: 0.6; } 100% { transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 35px var(--accent-glow)); } }
-        .empty-state h2 { font-family: 'Orbitron', sans-serif; color: #fff; font-size: 1.5rem; letter-spacing: 3px; margin-bottom: 15px; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-        .empty-state p { font-size: 0.95rem; line-height: 1.7; color: #8b9bb4; }
+        .empty-state h2 { font-family: 'Orbitron', sans-serif; color: var(--text-main); font-size: 1.5rem; letter-spacing: 3px; margin-bottom: 15px; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        .empty-state p { font-size: 0.95rem; line-height: 1.7; color: var(--text-muted); }
 
         /* --- THE MODAL OVERLAY (GPU OPTIMIZED) --- */
         .dossier-modal-overlay {
@@ -301,7 +334,6 @@
             color: #eef5ff;
             box-sizing: border-box;
             
-            /* High-Performance Hardware Accelerated Transition (NO LAG) */
             margin: auto; 
             transform: scale(0.9) translateY(20px);
             opacity: 0; 
@@ -460,7 +492,6 @@
             .workspace-header { padding: 15px 20px; }
             .tool-btn { width: 44px; height: 44px; font-size: 1.1rem; }
             
-            /* CRITICAL FIX: Extremely large bottom padding (350px) to ensure full intro scrolls completely past input bar */
             .chat-feed { padding: 15px 15px 350px; gap: 20px; } 
             .message { max-width: 95%; }
             .message-bubble { padding: 15px 20px; font-size: 0.95rem; }
@@ -468,7 +499,7 @@
             .input-zone { padding: 12px 15px calc(15px + env(safe-area-inset-bottom)); }
             .floating-input-form { padding: 8px 12px; border-radius: 20px; }
             .input-row { gap: 8px; }
-            .prompt-input { padding: 12px 8px; font-size: 16px !important; } /* 16px prevents iOS zoom */
+            .prompt-input { padding: 12px 8px; font-size: 16px !important; } 
             .action-btn, .send-action, .stop-action { width: 46px; height: 46px; font-size: 1.2rem; }
             
             .scroll-to-bottom { bottom: 100px; right: 15px; width: 46px; height: 46px; font-size: 1.1rem; }
@@ -493,7 +524,14 @@
         }
     </style>
 </head>
-<body data-theme="dark">
+<body>
+
+<script>
+    // ------------------------- Theme Boot Initialization -------------------------
+    // Set theme immediately to avoid flash of unstyled content
+    const savedTheme = localStorage.getItem('sparky_theme') || 'dark';
+    document.body.setAttribute('data-theme', savedTheme);
+</script>
 
 <!-- HIGH PERFORMANCE SCI-FI CANVAS BACKGROUND (GLITTER & INTERACTIVE) -->
 <canvas id="sciFiCanvas"></canvas>
@@ -540,6 +578,10 @@
                 <button class="tool-btn" id="musicToggleBtn" title="Toggle Sci-Fi Ambience"><i class="fa-solid fa-music"></i></button>
                 <button class="tool-btn" id="nextMusicBtn" title="Next Track" style="display:none;"><i class="fa-solid fa-forward-step"></i></button>
                 <button class="tool-btn" id="voiceToggleBtn" title="Toggle Speech Output"><i class="fa-solid fa-volume-high"></i></button>
+                
+                <!-- NEW THEME TOGGLE BUTTON -->
+                <button class="tool-btn" id="themeToggleBtn" title="Toggle Aurora Theme"><i class="fa-solid fa-sun"></i></button>
+                
                 <!-- SYSTEM DOSSIER INFO BUTTON -->
                 <button class="tool-btn highlight" id="infoModalBtn" title="System Dossier"><i class="fa-solid fa-id-badge"></i></button>
             </div>
@@ -573,6 +615,35 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
 <script>
+    // ------------------------- Global State -------------------------
+    const SERVER_URL = "/api/chat";
+    let currentAbortController = null;
+    let isAudioEnabled = true;
+    let currentConversationId = null;
+    let conversations = new Map();
+    let isGenerating = false;
+
+    // ------------------------- Theme Management -------------------------
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    
+    // Set icon correctly on load
+    if(themeToggleBtn) {
+        themeToggleBtn.innerHTML = savedTheme === 'aurora' ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = document.body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'aurora' ? 'dark' : 'aurora';
+        
+        document.body.setAttribute('data-theme', newTheme);
+        localStorage.setItem('sparky_theme', newTheme);
+        
+        // Swap the icon
+        themeToggleBtn.innerHTML = newTheme === 'aurora' ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
+        
+        showToast(newTheme === 'aurora' ? 'Aurora Mode Engaged' : 'Dark Mode Engaged');
+    });
+
     // ------------------------- UPGRADED GLITTER CANVAS BACKGROUND (Touch + Glow) -------------------------
     const canvas = document.getElementById('sciFiCanvas');
     const ctx = canvas.getContext('2d');
@@ -583,7 +654,7 @@
         width = canvas.width = window.innerWidth;
         height = canvas.height = window.innerHeight;
         particles = [];
-        const numParticles = Math.floor((width * height) / 9000); // Dense starfield
+        const numParticles = Math.floor((width * height) / 9000); 
         for (let i = 0; i < numParticles; i++) {
             particles.push(new Particle());
         }
@@ -601,7 +672,6 @@
             this.alpha = Math.random();
         }
         draw() {
-            // Glitter twinkle effect
             this.alpha += this.twinkleSpeed;
             if(this.alpha > 1 || this.alpha < 0.2) this.twinkleSpeed = -this.twinkleSpeed;
             
@@ -612,7 +682,7 @@
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
             ctx.closePath();
             ctx.fill();
-            ctx.shadowBlur = 0; // reset for lines
+            ctx.shadowBlur = 0; 
         }
         update() {
             let dx = mouse.x - this.x;
@@ -670,10 +740,8 @@
     }
 
     window.addEventListener('resize', initCanvas);
-    // Mouse tracking
     window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
     window.addEventListener('mouseout', () => { mouse.x = undefined; mouse.y = undefined; });
-    // Phone touch tracking
     window.addEventListener('touchmove', (e) => { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; });
     window.addEventListener('touchend', () => { mouse.x = undefined; mouse.y = undefined; });
     
@@ -686,7 +754,6 @@
     const nextMusicBtn = document.getElementById('nextMusicBtn');
     const cyberpunkMusic = document.getElementById('cyberpunkMusic');
     
-    // Direct, reliable, open-access MP3 files
     const tracks = [
         "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=cyberpunk-2099-10701.mp3",
         "https://cdn.pixabay.com/download/audio/2021/11/25/audio_91b3cb0154.mp3?filename=cyber-war-126419.mp3",
@@ -729,14 +796,7 @@
         if (isMusicPlaying) playAudio();
     };
 
-    // ------------------------- Global State -------------------------
-    const SERVER_URL = "/api/chat";
-    let currentAbortController = null;
-    let isAudioEnabled = true;
-    let currentConversationId = null;
-    let conversations = new Map();
-    let isGenerating = false;
-
+    // ------------------------- Element Definitions -------------------------
     const chatFeed = document.getElementById('chatFeed');
     const userInput = document.getElementById('userInput');
     const sendBtn = document.getElementById('sendBtn');
