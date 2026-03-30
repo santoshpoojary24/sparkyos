@@ -28,7 +28,7 @@ let isMaintenanceMode = false;
 let users = [
     { username: 'admin', password: '2468', role: 'admin' },
     { username: 'sparky', password: '1111', role: 'admin' },
-    { username: 'jeevan',  password: '1234',   role: '1234' }
+    { username: 'jeevan',  password: '1234',   role: 'user' }
     { username: 'user',  password: '1234',   role: 'user' }
 ];
 
