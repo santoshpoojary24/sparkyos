@@ -1,11 +1,11 @@
 {
   "version": 2,
   "env": {
-    "TZ": "Asia/Kolkata"
+    "TIMEZONE": "Asia/Kolkata"
   },
   "build": {
     "env": {
-      "TZ": "Asia/Kolkata"
+      "TIMEZONE": "Asia/Kolkata"
     }
   },
   "builds": [
