@@ -200,7 +200,7 @@
         .log-entry { color: var(--success); border-left: 2px solid var(--success); padding-left: 8px; }
 
         /* ============================================================
-           ALL ANIMATIONS PORTED FROM INDEX.HTML
+           ALL ANIMATIONS
         ============================================================ */
         @keyframes holoIn {
             from { opacity: 0; transform: translateY(40px) scale(0.9) perspective(600px) rotateX(-15deg); filter: blur(8px); }
@@ -279,11 +279,6 @@
         }
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus { animation: borderPulse 2s infinite; }
 
-        @keyframes dotBlink {
-            0%, 100% { opacity: 0.2; transform: scale(0.8); }
-            50%       { opacity: 1;   transform: scale(1.2); }
-        }
-
         .nav-item.active { box-shadow: inset 0 0 15px rgba(59,130,246,0.2), 0 0 10px rgba(59,130,246,0.1); }
         @media (hover: hover) { .nav-item:hover { box-shadow: inset 0 0 10px rgba(59,130,246,0.1); transform: translateX(4px); } }
 
@@ -306,11 +301,6 @@
         .modal-overlay.active .modal-box {
             transform: translateY(0) scale(1);
             box-shadow: 0 0 40px rgba(59,130,246,0.3), 0 20px 50px rgba(0,0,0,0.8);
-        }
-
-        @keyframes toastIn {
-            from { bottom: -30px; opacity: 0; transform: translateX(20px); }
-            to   { bottom: 0;     opacity: 1; transform: translateX(0); }
         }
 
         /* ============================================================
@@ -577,7 +567,7 @@
                     </div>
                     <div class="table-responsive">
                         <table class="cyber-table" id="securityTable">
-                            <thead><tr><th>Timestamp</th><th>Severity</th><th>Event Type</th><th>IP Address</th><th>Details</th></tr></thead>
+                            <thead><tr><th>Local Time</th><th>Severity</th><th>Event Type</th><th>IP Address</th><th>Details</th></tr></thead>
                             <tbody id="securityTableBody"></tbody>
                         </table>
                     </div>
@@ -681,6 +671,26 @@
     </div>
 
 <script>
+    // ========== TIMEZONE SYNC FIX ==========
+    function convertToLocalTime(serverTimeString) {
+        if (!serverTimeString) return "Unknown Time";
+        let safeString = String(serverTimeString).includes('UTC') || String(serverTimeString).includes('Z') 
+            ? serverTimeString 
+            : serverTimeString + ' UTC';
+        
+        const dateObj = new Date(safeString);
+        if (isNaN(dateObj)) return serverTimeString; // Fallback just in case parsing fails
+        
+        return dateObj.toLocaleString(undefined, {
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true 
+        });
+    }
+
     // ========== SCI-FI GLITTER PARTICLE CANVAS ==========
     const sciFiCanvas = document.getElementById('sciFiCanvas');
     const sciFiCtx = sciFiCanvas.getContext('2d');
@@ -884,7 +894,7 @@
             } else {
                 showToast('Maintenance Mode LIFTED. System open.', 'success');
             }
-            fetchRealStats(); // Force log refresh
+            fetchRealStats(); 
         } catch(err) {
             el.checked = !isActive; 
             showToast(err.message, 'error');
@@ -903,7 +913,7 @@
     function exportLogs() {
         const rows = document.querySelectorAll('#securityTableBody tr');
         if(rows.length === 0) return showToast("No logs to export.", "warning");
-        let csvContent = "data:text/csv;charset=utf-8,Timestamp,Severity,Event Type,IP Address,Details\n";
+        let csvContent = "data:text/csv;charset=utf-8,Local Time,Severity,Event Type,IP Address,Details\n";
         rows.forEach(row => {
             if(row.style.display !== 'none') {
                 const cols = row.querySelectorAll('td');
@@ -1040,17 +1050,21 @@
                     let color = "var(--success)", severity = "INFO";
                     if (log.type.includes('Failed') || log.type.includes('Error') || log.type.includes('Blocked')) { color = "var(--danger)"; severity = "CRIT"; } 
                     else if (log.type.includes('Reboot') || log.type.includes('Warning') || log.type.includes('Alert')) { color = "var(--warning)"; severity = "WARN"; }
-                    const rawTextForSearch = `${log.time} ${severity} ${log.type} ${log.ip} ${log.details}`.toLowerCase();
+                    
+                    // APPLYING THE TIMEZONE FIX HERE
+                    const localLogTime = convertToLocalTime(log.time);
+
+                    const rawTextForSearch = `${localLogTime} ${severity} ${log.type} ${log.ip} ${log.details}`.toLowerCase();
                     const displayStyle = (searchTerm === '' || rawTextForSearch.includes(searchTerm)) ? '' : 'display:none;';
 
                     tableHTML += `<tr style="${displayStyle}">
-                        <td style="font-family: monospace; color: var(--text-muted);">${log.time}</td>
+                        <td style="font-family: monospace; color: var(--text-muted);">${localLogTime}</td>
                         <td><span class="badge" style="border: 1px solid ${color}; color: ${color}; background: rgba(0,0,0,0.2);">${severity}</span></td>
                         <td><span style="color: ${color}; font-weight: bold;">${log.type}</span></td>
                         <td style="font-family: monospace; color: var(--accent);">${log.ip}</td>
                         <td>${log.details}</td>
                     </tr>`;
-                    feedHTML += `<div class="log-entry" style="border-color: ${color}; color: ${color};">[${log.time}] [${severity}] ${log.details}</div>`;
+                    feedHTML += `<div class="log-entry" style="border-color: ${color}; color: ${color};">[${localLogTime}] [${severity}] ${log.details}</div>`;
                 });
                 logTableBody.innerHTML = tableHTML; liveFeed.innerHTML = feedHTML;
             }
