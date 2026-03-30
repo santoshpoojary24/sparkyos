@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const session = require('express-session');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 const os = require('os');
 const path = require('path');
 
@@ -12,24 +13,13 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+app.use(cookieParser()); // Required to read the JWT cookie
 app.use(express.static(__dirname));
 
-// Session configuration
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'sparky-secret-key-change-this',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
-    }
-}));
-
+// JWT Secret Key - Set this in Vercel Environment Variables!
+const JWT_SECRET = process.env.JWT_SECRET || 'sparky-super-secret-jwt-key-change-this';
 
 // ========== SYSTEM STATE (In-Memory) ==========
-// NOTE: On Vercel, this data will reset when the serverless function sleeps.
-
 let NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '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';
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 let isMaintenanceMode = false;
@@ -41,13 +31,13 @@ let users = [
 ];
 
 let stats = { totalConversations: 0, totalMessages: 0 };
-const sessionActivity = new Map();
+// We track active JWTs by decoding them on requests to simulate active sessions
+const sessionActivity = new Map(); 
 
 // Default Security Logs Array
 let securityLogs = [
-    { time: new Date().toLocaleTimeString(), type: 'System Boot', ip: 'localhost', details: 'Sparky OS Core Initialized (No DB Mode).' }
+    { time: new Date().toLocaleTimeString(), type: 'System Boot', ip: 'localhost', details: 'Sparky OS Core Initialized (JWT Mode).' }
 ];
-
 
 // ========== REAL-TIME CPU CALCULATOR ==========
 let currentCpuLoad = 0;
@@ -69,11 +59,10 @@ setInterval(() => {
     startMeasure = endMeasure;
 }, 1000);
 
-
 // ========== HELPER FUNCTIONS ==========
 function addLog(type, ip, details) {
     securityLogs.unshift({ time: new Date().toLocaleTimeString(), type, ip, details });
-    if (securityLogs.length > 20) securityLogs.pop(); // Keep only the last 20 logs
+    if (securityLogs.length > 20) securityLogs.pop();
 }
 
 function formatUptime(seconds) {
@@ -81,12 +70,35 @@ function formatUptime(seconds) {
     return `${h}h ${m}m ${s}s`;
 }
 
-function updateActiveSession(sessionId) {
-    sessionActivity.set(sessionId, Date.now());
+function updateActiveSession(username) {
+    sessionActivity.set(username, Date.now());
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
     for (let [id, ts] of sessionActivity.entries()) { if (ts < oneHourAgo) sessionActivity.delete(id); }
 }
 
+// ========== JWT AUTH MIDDLEWARE ==========
+const requireAuth = (req, res, next) => {
+    const token = req.cookies.sparky_auth;
+    if (!token) return res.status(401).json({ error: 'Unauthorized. Missing token.' });
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded; // Attach user info to the request
+        updateActiveSession(req.user.username);
+        next();
+    } catch (err) {
+        res.status(401).json({ error: 'Invalid or expired token.' });
+    }
+};
+
+const requireAdmin = (req, res, next) => {
+    requireAuth(req, res, () => {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden. Root access required.' });
+        }
+        next();
+    });
+};
 
 // ========== AUTH ENDPOINTS ==========
 app.post('/api/login', (req, res) => {
@@ -99,8 +111,22 @@ app.post('/api/login', (req, res) => {
             return res.status(403).json({ error: 'SYSTEM IN MAINTENANCE. ADMIN ACCESS ONLY.' });
         }
 
-        req.session.user = { username, role: user.role };
-        addLog('Auth Success', req.ip || 'unknown', `User '${username}' logged into system.`);
+        // Generate JWT
+        const token = jwt.sign(
+            { username: user.username, role: user.role }, 
+            JWT_SECRET, 
+            { expiresIn: '1d' }
+        );
+
+        // Set JWT as an HTTP-Only Cookie
+        res.cookie('sparky_auth', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // True on Vercel
+            sameSite: 'lax',
+            maxAge: 24 * 60 * 60 * 1000 // 1 day
+        });
+
+        addLog('Auth Success', req.ip || 'unknown', `User '${username}' logged into system via JWT.`);
         return res.json({ success: true, role: user.role });
     }
     
@@ -108,33 +134,26 @@ app.post('/api/login', (req, res) => {
     res.status(401).json({ error: 'Invalid credentials' });
 });
 
-app.get('/api/check-auth', (req, res) => {
-    if (req.session.user) res.json({ authenticated: true });
-    else res.status(401).json({ authenticated: false });
+app.get('/api/check-auth', requireAuth, (req, res) => {
+    res.json({ authenticated: true });
 });
 
-app.get('/api/user', (req, res) => {
-    if (req.session.user) res.json({ authenticated: true, user: req.session.user });
-    else res.status(401).json({ authenticated: false });
+app.get('/api/user', requireAuth, (req, res) => {
+    res.json({ authenticated: true, user: req.user });
 });
 
 app.post('/api/logout', (req, res) => {
-    const user = req.session.user ? req.session.user.username : 'Unknown';
-    req.session.destroy(err => {
-        if (err) return res.status(500).json({ error: 'Logout failed' });
-        addLog('Session Closed', req.ip || 'unknown', `User '${user}' de-authorized.`);
-        res.json({ success: true });
-    });
+    // Clear the JWT cookie
+    res.clearCookie('sparky_auth');
+    addLog('Session Closed', req.ip || 'unknown', `User de-authorized.`);
+    res.json({ success: true });
 });
 
-
 // ========== NVIDIA DEEPSEEK CHAT ENDPOINT ==========
-app.post('/api/chat', async (req, res) => {
-    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
-    if (isMaintenanceMode && req.session.user.role !== 'admin') return res.status(403).json({ error: 'System down for maintenance.' });
+app.post('/api/chat', requireAuth, async (req, res) => {
+    if (isMaintenanceMode && req.user.role !== 'admin') return res.status(403).json({ error: 'System down for maintenance.' });
 
     stats.totalMessages++;
-    updateActiveSession(req.sessionID);
 
     try {
         const response = await fetch(NVIDIA_API_URL, {
@@ -166,13 +185,7 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-
 // ========== REAL ADMIN ENDPOINTS ==========
-const requireAdmin = (req, res, next) => {
-    if (!req.session.user || req.session.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden. Root access required.' });
-    next();
-};
-
 app.post('/api/admin/maintenance', requireAdmin, (req, res) => {
     isMaintenanceMode = req.body.active === true;
     const action = isMaintenanceMode ? 'ENGAGED. Standard users locked out.' : 'LIFTED. System open.';
@@ -189,7 +202,7 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
         totalConversations: stats.totalConversations, totalMessages: stats.totalMessages,
         activeSessions: sessionActivity.size, maintenanceMode: isMaintenanceMode,
         logs: securityLogs, 
-        users: users.map(u => ({ username: u.username, role: u.role })) // Hide passwords from frontend
+        users: users.map(u => ({ username: u.username, role: u.role })) 
     });
 });
 
@@ -241,7 +254,7 @@ app.post('/api/admin/reboot', requireAdmin, (req, res) => {
 
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => console.log(`🚀 Sparky Core running in Memory Mode on http://localhost:${PORT}`));
+    app.listen(PORT, () => console.log(`🚀 Sparky Core running in JWT Mode on http://localhost:${PORT}`));
 }
 
 module.exports = app;
