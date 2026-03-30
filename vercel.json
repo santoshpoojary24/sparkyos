@@ -1,5 +1,13 @@
 {
   "version": 2,
+  "env": {
+    "TZ": "Asia/Kolkata"
+  },
+  "build": {
+    "env": {
+      "TZ": "Asia/Kolkata"
+    }
+  },
   "builds": [
     {
       "src": "server.js",
@@ -19,15 +27,5 @@
       "source": "/",
       "destination": "/in.html"
     }
-    {
-  "env": {
-    "TIMEZONE": "Asia/Kolkata"
-  },
-  "build": {
-    "env": {
-      "TIMEZONE": "Asia/Kolkata"
-    }
-  }
-}
   ]
 }
