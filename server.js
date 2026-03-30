@@ -7,27 +7,22 @@ const path = require('path');
 
 const app = express();
 
-// CRITICAL FOR VERCEL: Tells Express to trust Vercel's proxy so req.ip shows the real user's IP
 app.set('trust proxy', 1);
 
-// Enable CORS with credentials (cookies)
 app.use(cors({
     origin: true,
     credentials: true
 }));
 app.use(express.json());
-app.use(cookieParser()); // Required to read the JWT cookie
+app.use(cookieParser());
 app.use(express.static(__dirname));
 
-// JWT Secret Key - Set this in Vercel Environment Variables!
 const JWT_SECRET = process.env.JWT_SECRET || 'sparky-super-secret-jwt-key-change-this';
 
-// ========== SYSTEM STATE (In-Memory) ==========
 let NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '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';
 const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 let isMaintenanceMode = false;
 
-// Default Users Array
 let users = [
     { username: 'admin', password: '2468', role: 'admin' },
     { username: 'sparky', password: '1111', role: 'admin' },
@@ -40,24 +35,19 @@ let users = [
 ];
 
 let stats = { totalConversations: 0, totalMessages: 0 };
-// We track active JWTs by decoding them on requests to simulate active sessions
 const sessionActivity = new Map(); 
 
-// Default Security Logs Array
 let securityLogs = [
     { time: new Date().toLocaleTimeString(), type: 'System Boot', ip: '127.0.0.1', details: 'Sparky OS Core Initialized (JWT Mode).' }
 ];
 
-// ========== CPU CALCULATOR (Serverless Safe) ==========
-// Removed setInterval. Using loadavg to prevent Vercel lambda timeouts
 function getCPULoad() {
     const cpus = os.cpus();
     if (!cpus || cpus.length === 0) return 0;
-    const load = os.loadavg()[0]; // 1-minute load average
+    const load = os.loadavg()[0];
     return Math.min(100, Math.round((load / cpus.length) * 100));
 }
 
-// ========== HELPER FUNCTIONS ==========
 function addLog(type, ip, details) {
     securityLogs.unshift({ time: new Date().toLocaleTimeString(), type, ip, details });
     if (securityLogs.length > 20) securityLogs.pop();
@@ -74,14 +64,13 @@ function updateActiveSession(username) {
     for (let [id, ts] of sessionActivity.entries()) { if (ts < oneHourAgo) sessionActivity.delete(id); }
 }
 
-// ========== JWT AUTH MIDDLEWARE ==========
 const requireAuth = (req, res, next) => {
     const token = req.cookies.sparky_auth;
     if (!token) return res.status(401).json({ error: 'Unauthorized. Missing token.' });
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = decoded; // Attach user info to the request
+        req.user = decoded;
         updateActiveSession(req.user.username);
         next();
     } catch (err) {
@@ -98,7 +87,6 @@ const requireAdmin = (req, res, next) => {
     });
 };
 
-// ========== AUTH ENDPOINTS ==========
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username);
@@ -109,19 +97,17 @@ app.post('/api/login', (req, res) => {
             return res.status(403).json({ error: 'SYSTEM IN MAINTENANCE. ADMIN ACCESS ONLY.' });
         }
 
-        // Generate JWT
         const token = jwt.sign(
             { username: user.username, role: user.role }, 
             JWT_SECRET, 
             { expiresIn: '1d' }
         );
 
-        // Set JWT as an HTTP-Only Cookie
         res.cookie('sparky_auth', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // True on Vercel
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 24 * 60 * 60 * 1000 // 1 day
+            maxAge: 24 * 60 * 60 * 1000
         });
 
         addLog('Auth Success', req.ip || 'unknown', `User '${username}' logged into system via JWT.`);
@@ -141,7 +127,6 @@ app.get('/api/user', requireAuth, (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-    // Clear the JWT cookie matching the exact attributes it was set with
     res.clearCookie('sparky_auth', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -151,10 +136,13 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// ========== NVIDIA DEEPSEEK CHAT ENDPOINT ==========
+// Dummy endpoint to catch frontend requests
+app.post('/api/conversation/new', requireAuth, (req, res) => {
+    res.json({ success: true });
+});
+
 app.post('/api/chat', requireAuth, async (req, res) => {
     if (isMaintenanceMode && req.user.role !== 'admin') return res.status(403).json({ error: 'System down for maintenance.' });
-
     stats.totalMessages++;
 
     try {
@@ -176,7 +164,6 @@ app.post('/api/chat', requireAuth, async (req, res) => {
 
         const reader = response.body.getReader();
 
-        // FIX: If user hits stop or disconnects, instantly abort the Nvidia request to save token costs
         req.on('close', () => {
             reader.cancel().catch(() => {});
         });
@@ -184,8 +171,6 @@ app.post('/api/chat', requireAuth, async (req, res) => {
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            
-            // FIX: Ensure chunk is correctly formatted as a Buffer for Express writing
             res.write(Buffer.from(value));
         }
         res.end();
@@ -195,7 +180,6 @@ app.post('/api/chat', requireAuth, async (req, res) => {
     }
 });
 
-// ========== REAL ADMIN ENDPOINTS ==========
 app.post('/api/admin/maintenance', requireAdmin, (req, res) => {
     isMaintenanceMode = req.body.active === true;
     const action = isMaintenanceMode ? 'ENGAGED. Standard users locked out.' : 'LIFTED. System open.';
@@ -267,4 +251,5 @@ if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => console.log(`🚀 Sparky Core running in JWT Mode on http://localhost:${PORT}`));
 }
 
+// CRITICAL FOR VERCEL
 module.exports = app;
