@@ -1,5 +1,13 @@
 {
   "version": 2,
+  "env": {
+    "TZ": "Asia/Kolkata"
+  },
+  "build": {
+    "env": {
+      "TZ": "Asia/Kolkata"
+    }
+  },
   "builds": [
     {
       "src": "server.js",
