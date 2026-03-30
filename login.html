@@ -144,10 +144,24 @@
         button:hover:not(:disabled) { background: var(--accent-glow); color: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4); }
         button:disabled { opacity: 0.6; cursor: not-allowed; border-color: var(--danger); color: var(--danger); background: rgba(239, 68, 68, 0.1); }
 
+        /* --- DEMO CREDENTIALS BOX --- */
+        .demo-credentials {
+            margin-top: 24px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px dashed var(--accent-secondary);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: left;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: 'Orbitron', monospace;
+        }
+        .demo-credentials span { color: var(--accent-glow); font-weight: bold; }
+
         /* --- FEATURE: CONTACT FOOTER --- */
         .contact-gate {
-            margin-top: 32px;
-            padding-top: 24px;
+            margin-top: 24px;
+            padding-top: 20px;
             border-top: 1px dashed rgba(59, 130, 246, 0.2);
             text-align: left;
         }
@@ -201,6 +215,12 @@
             <button type="submit" id="submitBtn"><i class="fa-solid fa-right-to-bracket"></i> INITIALIZE LINK</button>
             <div id="errorMsg" class="error"></div>
         </form>
+
+        <div class="demo-credentials">
+            <div style="margin-bottom: 6px; color: var(--accent-secondary);">[ SYSTEM BYPASS CREDENTIALS ]</div>
+            <div>ID: <span>admin</span> | KEY: <span>2468</span></div>
+            <div>ID: <span>user</span> &nbsp;| KEY: <span>1234</span></div>
+        </div>
 
         <div class="contact-gate">
             <p>Access restricted. If you do not have authorized credentials, contact system administration:</p>
@@ -264,7 +284,6 @@
             telemetryBox.innerHTML = tLines.map(l => `<div class="telemetry-line">${l}</div>`).join('');
         }, 2800);
 
-
         // --- MOUSE ORB ---
         const orb = document.getElementById('mouseOrb');
         const updateOrb = (e) => {
@@ -302,11 +321,16 @@
             togglePassword.classList.toggle('active');
         });
 
-        // --- LOGIN LOGIC WITH LOCKOUT TIMER ---
+        // --- LOGIN LOGIC WITH LOCKOUT TIMER (CLIENT SIDE OVERRIDE) ---
+        const validCredentials = [
+            { username: 'admin', password: '2468', role: 'admin' },
+            { username: 'user',  password: '1234', role: 'user' }
+        ];
+
         let failedAttempts = 0;
         let isLockedOut = false;
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
             e.preventDefault();
             if (isLockedOut) return;
 
@@ -326,38 +350,37 @@
             syncFill.style.transition = 'width 1.5s ease-in-out';
             setTimeout(() => syncFill.style.width = '100%', 10);
 
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: usernameInput.value.trim(), password: passwordInput.value }),
-                    credentials: 'include'
-                });
+            const inputUser = usernameInput.value.trim();
+            const inputPass = passwordInput.value;
+            
+            // Check credentials against our array
+            const matchedUser = validCredentials.find(u => u.username === inputUser && u.password === inputPass);
 
-                if (res.ok) {
+            // Simulate server response time to allow the UI to look "busy"
+            setTimeout(() => {
+                if (matchedUser) {
                     submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> SYNC COMPLETE';
                     submitBtn.style.background = '#4ade80';
                     submitBtn.style.borderColor = '#4ade80';
                     submitBtn.style.color = '#fff';
-                    // THIS LINE WAS FIXED TO PREVENT THE REDIRECT LOOP
-                    setTimeout(() => window.location.href = '/index.html', 600);
-                } else if (res.status === 504 || res.status === 502) {
-                    triggerError('SYSTEM WAKING UP. PLEASE RETRY.');
+                    
+                    // You can optionally store the role in localStorage to use on the next page
+                    localStorage.setItem('userRole', matchedUser.role);
+                    
+                    setTimeout(() => window.location.href = 'index.html', 600);
                 } else {
                     handleFailedAttempt();
                 }
-            } catch (err) {
-                handleFailedAttempt(true); // Treat total network failure as a failed attempt to prevent spam
-            }
+            }, 1500); // 1.5s delay to match the sync bar
 
-            function handleFailedAttempt(isNetworkError = false) {
+            function handleFailedAttempt() {
                 failedAttempts++;
                 syncFill.style.width = '0%';
                 
                 if (failedAttempts >= 3) {
                     initiateLockout();
                 } else {
-                    triggerError(isNetworkError ? 'NODE CONNECTION FAILED. RETRY.' : 'ACCESS DENIED');
+                    triggerError('ACCESS DENIED');
                 }
             }
 
