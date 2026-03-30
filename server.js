@@ -7,6 +7,7 @@ const path = require('path');
 
 const app = express();
 
+// CRITICAL FOR VERCEL
 app.set('trust proxy', 1);
 
 app.use(cors({
@@ -103,10 +104,12 @@ app.post('/api/login', (req, res) => {
             { expiresIn: '1d' }
         );
 
+        // --- CRITICAL COOKIE FIX HERE ---
         res.cookie('sparky_auth', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            secure: true, 
+            sameSite: 'none', 
+            path: '/', 
             maxAge: 24 * 60 * 60 * 1000
         });
 
@@ -127,16 +130,17 @@ app.get('/api/user', requireAuth, (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
+    // --- CRITICAL LOGOUT COOKIE FIX HERE ---
     res.clearCookie('sparky_auth', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
+        secure: true,
+        sameSite: 'none',
+        path: '/'
     });
     addLog('Session Closed', req.ip || 'unknown', `User de-authorized.`);
     res.json({ success: true });
 });
 
-// Dummy endpoint to catch frontend requests
 app.post('/api/conversation/new', requireAuth, (req, res) => {
     res.json({ success: true });
 });
