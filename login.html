@@ -327,41 +327,36 @@
             setTimeout(() => syncFill.style.width = '100%', 10);
 
             try {
-                // FETCH FROM VERCEL DATABASE BACKEND
                 const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: usernameInput.value.trim(), password: passwordInput.value })
+                    body: JSON.stringify({ username: usernameInput.value.trim(), password: passwordInput.value }),
+                    credentials: 'include'
                 });
 
-                const data = await res.json();
-
-                if (res.ok && data.success) {
+                if (res.ok) {
                     submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> SYNC COMPLETE';
                     submitBtn.style.background = '#4ade80';
                     submitBtn.style.borderColor = '#4ade80';
                     submitBtn.style.color = '#fff';
-                    
-                    // REDIRECT DIRECTLY TO THE MAIN NEURAL LINK (INDEX) ON SUCCESS
-                    setTimeout(() => window.location.href = '/index.html', 600);
+                    setTimeout(() => window.location.href = '/', 600);
+                } else if (res.status === 504 || res.status === 502) {
+                    triggerError('SYSTEM WAKING UP. PLEASE RETRY.');
                 } else {
-                    // IF DB SAYS "INVALID", SHOW ERROR
-                    handleFailedAttempt(false, data.error || 'ACCESS DENIED');
+                    handleFailedAttempt();
                 }
             } catch (err) {
-                // IF SERVER CRASHES OR NO INTERNET
-                handleFailedAttempt(true, 'NODE CONNECTION FAILED. RETRY.');
+                handleFailedAttempt(true); // Treat total network failure as a failed attempt to prevent spam
             }
 
-            // --- LOCKOUT HELPER FUNCTIONS ---
-            function handleFailedAttempt(isNetworkError = false, customMsg = null) {
+            function handleFailedAttempt(isNetworkError = false) {
                 failedAttempts++;
                 syncFill.style.width = '0%';
                 
                 if (failedAttempts >= 3) {
                     initiateLockout();
                 } else {
-                    triggerError(customMsg || (isNetworkError ? 'NODE CONNECTION FAILED. RETRY.' : 'ACCESS DENIED'));
+                    triggerError(isNetworkError ? 'NODE CONNECTION FAILED. RETRY.' : 'ACCESS DENIED');
                 }
             }
 
@@ -384,6 +379,7 @@
                 let countdown = 15;
                 submitBtn.innerHTML = `<i class="fa-solid fa-lock"></i> LOCKED (${countdown}s)`;
                 
+                // Add to telemetry
                 tLines.push("> <span style='color: var(--danger);'>WARNING: MULTIPLE FAILED LOGINS DETECTED.</span>");
                 tLines.push("> <span style='color: var(--danger);'>INITIATING PROTOCOL ZERO.</span>");
 
