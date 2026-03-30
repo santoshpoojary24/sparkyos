@@ -32,6 +32,7 @@ let users = [
     { username: 'disha',  password: '1234',   role: 'user' },
     { username: 'riya',  password: '1234',   role: 'user' },
     { username: 'shraddha',  password: '2006',   role: 'user' },
+    { username: 'kunal',  password: '2004',   role: 'user' },
     { username: 'shubh',  password: '2006',   role: 'admin' },
     { username: 'user',  password: '1234',   role: 'user' }
 ];
