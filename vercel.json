@@ -1,20 +1,12 @@
 {
   "version": 2,
-  "env": {
-    "TZ": "Asia/Kolkata"
-  },
-  "build": {
-    "env": {
-      "TZ": "Asia/Kolkata"
-    }
-  },
   "builds": [
     {
       "src": "server.js",
       "use": "@vercel/node"
     },
     {
-      "src": "*.html",
+      "src": "**/*.html",
       "use": "@vercel/static"
     }
   ],
@@ -22,10 +14,6 @@
     {
       "source": "/api/(.*)",
       "destination": "/server.js"
-    },
-    {
-      "source": "/",
-      "destination": "/in.html"
     }
   ]
 }
