@@ -26,8 +26,9 @@ let isMaintenanceMode = false;
 
 // Default Users Array
 let users = [
-    { username: 'admin', password: 'sparky123', role: 'admin' },
-    { username: 'user',  password: 'user123',   role: 'user' }
+    { username: 'admin', password: '2468', role: 'admin' },
+    { username: 'sparky', password: '1111', role: 'admin' },
+    { username: 'user',  password: '1234',   role: 'user' }
 ];
 
 let stats = { totalConversations: 0, totalMessages: 0 };
