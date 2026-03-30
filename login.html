@@ -189,8 +189,6 @@
     <div class="telemetry-overlay" id="telemetryBox"></div>
 
     <div class="login-container" id="loginBox">
-        <a href="in.html" class="back-link"><i class="fa-solid fa-lock"></i> LOCK</a>
-
         <div class="logo-main"><i class="fa-solid fa-atom"></i> SPARKY</div>
         <div class="logo-sub" id="scrambleText">OS AUTHORIZATION</div>
         
@@ -321,16 +319,11 @@
             togglePassword.classList.toggle('active');
         });
 
-        // --- LOGIN LOGIC WITH LOCKOUT TIMER (CLIENT SIDE OVERRIDE) ---
-        const validCredentials = [
-            { username: 'admin', password: '2468', role: 'admin' },
-            { username: 'user',  password: '1234', role: 'user' }
-        ];
-
+        // --- LOGIN LOGIC WITH LOCKOUT TIMER (BACKEND API INTEGRATION) ---
         let failedAttempts = 0;
         let isLockedOut = false;
 
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (isLockedOut) return;
 
@@ -350,28 +343,35 @@
             syncFill.style.transition = 'width 1.5s ease-in-out';
             setTimeout(() => syncFill.style.width = '100%', 10);
 
-            const inputUser = usernameInput.value.trim();
-            const inputPass = passwordInput.value;
-            
-            // Check credentials against our array
-            const matchedUser = validCredentials.find(u => u.username === inputUser && u.password === inputPass);
+            try {
+                // Sending the credentials to your Express Backend
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        username: usernameInput.value.trim(), 
+                        password: passwordInput.value 
+                    }),
+                    credentials: 'include' // CRITICAL: Allows the backend to set the JWT cookie
+                });
 
-            // Simulate server response time to allow the UI to look "busy"
-            setTimeout(() => {
-                if (matchedUser) {
+                if (res.ok) {
+                    const data = await res.json();
                     submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> SYNC COMPLETE';
                     submitBtn.style.background = '#4ade80';
                     submitBtn.style.borderColor = '#4ade80';
                     submitBtn.style.color = '#fff';
                     
-                    // You can optionally store the role in localStorage to use on the next page
-                    localStorage.setItem('userRole', matchedUser.role);
+                    // Optional: Store role locally for UI adjustments
+                    localStorage.setItem('userRole', data.role);
                     
                     setTimeout(() => window.location.href = 'index.html', 600);
                 } else {
                     handleFailedAttempt();
                 }
-            }, 1500); // 1.5s delay to match the sync bar
+            } catch (err) { 
+                handleFailedAttempt(); 
+            }
 
             function handleFailedAttempt() {
                 failedAttempts++;
@@ -403,7 +403,6 @@
                 let countdown = 15;
                 submitBtn.innerHTML = `<i class="fa-solid fa-lock"></i> LOCKED (${countdown}s)`;
                 
-                // Add to telemetry
                 tLines.push("> <span style='color: var(--danger);'>WARNING: MULTIPLE FAILED LOGINS DETECTED.</span>");
                 tLines.push("> <span style='color: var(--danger);'>INITIATING PROTOCOL ZERO.</span>");
 
