@@ -186,7 +186,7 @@
         .copy-code-btn:hover { background: rgba(0,240,255,0.25); box-shadow: 0 0 10px rgba(0,240,255,0.4); }
         .copy-code-btn.copied { background: rgba(0,255,100,0.12); border-color: rgba(0,255,100,0.5); color: #00ff64; }
 
-        /* QUANTUM CORE PULSE LOADER */
+        /* QUANTUM CORE PULSE LOADER (Kept as fallback) */
         .quantum-thinker { display: flex; align-items: center; gap: 20px; background: rgba(10, 15, 30, 0.85); backdrop-filter: blur(15px); border-radius: 60px; padding: 14px 32px; width: fit-content; border: 1px solid var(--accent-glow); box-shadow: 0 0 30px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 240, 255, 0.1); }
         .neural-core { position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
         .core-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid transparent; border-top: 3px solid var(--accent-glow); border-right: 2px solid rgba(255,0,85,0.8); animation: spinRing 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite; }
@@ -387,6 +387,66 @@
         @media (hover: hover) {
             .close-modal-btn:hover { background: var(--accent-pink); color: #fff; box-shadow: 0 0 30px var(--accent-pink); transform: rotate(90deg) scale(1.1); }
         }
+
+        /* --- CYBERPUNK SKELETON LOADERS --- */
+        .cyber-skeleton {
+            background: linear-gradient(90deg, 
+                rgba(10, 15, 30, 0.6) 25%, 
+                rgba(0, 240, 255, 0.15) 50%, 
+                rgba(10, 15, 30, 0.6) 75%
+            );
+            background-size: 200% 100%;
+            animation: cyberScan 1.5s infinite linear;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.05);
+        }
+
+        @keyframes cyberScan {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .history-skeleton {
+            height: 48px;
+            width: 100%;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+
+        /* --- AI MESSAGE SKELETON --- */
+        .skeleton-message-container {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+            align-self: flex-start;
+            animation: holoIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .skeleton-bubble {
+            padding: 18px 26px;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            border-top-left-radius: 4px;
+            border-left: 3px solid rgba(0, 240, 255, 0.3);
+            background: rgba(12, 20, 35, 0.5);
+            box-shadow: var(--shadow-float);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 250px;
+        }
+
+        .skeleton-line {
+            height: 10px;
+            border-radius: 4px;
+            background-size: 200% 100%;
+            border: none;
+        }
+
+        .skeleton-line.full { width: 100%; animation-delay: 0s; }
+        .skeleton-line.medium { width: 85%; animation-delay: 0.1s; }
+        .skeleton-line.short { width: 60%; animation-delay: 0.2s; }
 
         /* --- EXTREME MOBILE OPTIMIZATION --- */
         @media (max-width: 768px) {
@@ -795,17 +855,34 @@
         localStorage.setItem('sparky_active_id', currentConversationId);
     }
 
-    function loadConversations() {
-        const stored = localStorage.getItem('sparky_conversations');
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            parsed.forEach(c => conversations.set(c.id, c));
+    // --- CYBERPUNK SKELETON LOADERS JS FUNCTION ---
+    function showSidebarSkeletons() {
+        historyListDiv.innerHTML = '';
+        for (let i = 0; i < 4; i++) {
+            const skel = document.createElement('div');
+            skel.className = 'cyber-skeleton history-skeleton';
+            skel.style.animationDelay = `${i * 0.1}s`;
+            historyListDiv.appendChild(skel);
         }
-        const activeId = localStorage.getItem('sparky_active_id');
-        if (activeId && conversations.has(activeId)) currentConversationId = activeId;
-        if (!currentConversationId || !conversations.has(currentConversationId)) createNewConversation();
-        renderHistory();
-        renderCurrentChat();
+    }
+
+    // --- SKELETON-ENABLED LOAD CONVERSATIONS ---
+    function loadConversations() {
+        showSidebarSkeletons();
+        
+        setTimeout(() => {
+            const stored = localStorage.getItem('sparky_conversations');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                parsed.forEach(c => conversations.set(c.id, c));
+            }
+            const activeId = localStorage.getItem('sparky_active_id');
+            if (activeId && conversations.has(activeId)) currentConversationId = activeId;
+            if (!currentConversationId || !conversations.has(currentConversationId)) createNewConversation();
+            
+            renderHistory();
+            renderCurrentChat();
+        }, 1500);
     }
 
     function createNewConversation() {
@@ -942,6 +1019,29 @@
         return thinkDiv;
     }
 
+    // --- AI SKELETON LOADER JS FUNCTION ---
+    function showAISkeletonLoader() {
+        const emptyDisplay = document.getElementById('emptyStateDisplay');
+        if(emptyDisplay) emptyDisplay.remove();
+        
+        const skeletonDiv = document.createElement('div');
+        skeletonDiv.id = 'aiSkeletonLoader';
+        skeletonDiv.className = 'skeleton-message-container message ai-message';
+        
+        skeletonDiv.innerHTML = `
+            <div class="skeleton-bubble message-bubble">
+                <div class="cyber-skeleton skeleton-line full"></div>
+                <div class="cyber-skeleton skeleton-line full"></div>
+                <div class="cyber-skeleton skeleton-line medium"></div>
+                <div class="cyber-skeleton skeleton-line short"></div>
+            </div>
+        `;
+        
+        chatFeed.appendChild(skeletonDiv);
+        scrollToBottom();
+        return skeletonDiv;
+    }
+
     async function submitChat() {
         if (isGenerating) return;
         let text = userInput.value.trim();
@@ -957,7 +1057,8 @@
         userInput.style.height = 'auto';
         sendBtn.disabled = true;
 
-        const thinkLoader = showThinkingLoader();
+        // ACTIVATED SKELETON LOADER HERE
+        const thinkLoader = showAISkeletonLoader(); 
         
         try {
             currentAbortController = new AbortController();
@@ -1105,7 +1206,17 @@
     });
     userInput.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitChat(); } });
     sendBtn.onclick = (e) => { e.preventDefault(); submitChat(); };
-    stopBtn.onclick = () => { if(currentAbortController) currentAbortController.abort(); const loader = document.getElementById('thinkLoader'); if(loader) loader.remove(); isGenerating = false; sendBtn.style.display = 'flex'; stopBtn.style.display = 'none'; sendBtn.disabled = !userInput.value.trim(); };
+    
+    // Updated Stop Button to remove the correct skeleton loader
+    stopBtn.onclick = () => { 
+        if(currentAbortController) currentAbortController.abort(); 
+        const loader = document.getElementById('aiSkeletonLoader') || document.getElementById('thinkLoader'); 
+        if(loader) loader.remove(); 
+        isGenerating = false; 
+        sendBtn.style.display = 'flex'; 
+        stopBtn.style.display = 'none'; 
+        sendBtn.disabled = !userInput.value.trim(); 
+    };
     
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
