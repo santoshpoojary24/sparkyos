@@ -1,13 +1,5 @@
 {
   "version": 2,
-  "env": {
-    "TIMEZONE": "Asia/Kolkata"
-  },
-  "build": {
-    "env": {
-      "TIMEZONE": "Asia/Kolkata"
-    }
-  },
   "builds": [
     {
       "src": "server.js",
