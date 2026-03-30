@@ -7,6 +7,9 @@ const path = require('path');
 
 const app = express();
 
+// CRITICAL FOR VERCEL: Tells Express to trust Vercel's proxy so req.ip shows the real user's IP
+app.set('trust proxy', 1);
+
 // Enable CORS with credentials (cookies)
 app.use(cors({
     origin: true,
@@ -42,28 +45,17 @@ const sessionActivity = new Map();
 
 // Default Security Logs Array
 let securityLogs = [
-    { time: new Date().toLocaleTimeString(), type: 'System Boot', ip: 'localhost', details: 'Sparky OS Core Initialized (JWT Mode).' }
+    { time: new Date().toLocaleTimeString(), type: 'System Boot', ip: '127.0.0.1', details: 'Sparky OS Core Initialized (JWT Mode).' }
 ];
 
-// ========== REAL-TIME CPU CALCULATOR ==========
-let currentCpuLoad = 0;
-function getCPUInfo() {
+// ========== CPU CALCULATOR (Serverless Safe) ==========
+// Removed setInterval. Using loadavg to prevent Vercel lambda timeouts
+function getCPULoad() {
     const cpus = os.cpus();
-    let user = 0, nice = 0, sys = 0, idle = 0, irq = 0;
-    for (let cpu in cpus) {
-        user += cpus[cpu].times.user; nice += cpus[cpu].times.nice;
-        sys += cpus[cpu].times.sys; idle += cpus[cpu].times.idle; irq += cpus[cpu].times.irq;
-    }
-    return { idle, total: user + nice + sys + idle + irq };
+    if (!cpus || cpus.length === 0) return 0;
+    const load = os.loadavg()[0]; // 1-minute load average
+    return Math.min(100, Math.round((load / cpus.length) * 100));
 }
-let startMeasure = getCPUInfo();
-setInterval(() => {
-    const endMeasure = getCPUInfo();
-    const idleDifference = endMeasure.idle - startMeasure.idle;
-    const totalDifference = endMeasure.total - startMeasure.total;
-    currentCpuLoad = 100 - Math.floor(100 * idleDifference / totalDifference);
-    startMeasure = endMeasure;
-}, 1000);
 
 // ========== HELPER FUNCTIONS ==========
 function addLog(type, ip, details) {
@@ -149,8 +141,12 @@ app.get('/api/user', requireAuth, (req, res) => {
 });
 
 app.post('/api/logout', (req, res) => {
-    // Clear the JWT cookie
-    res.clearCookie('sparky_auth');
+    // Clear the JWT cookie matching the exact attributes it was set with
+    res.clearCookie('sparky_auth', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+    });
     addLog('Session Closed', req.ip || 'unknown', `User de-authorized.`);
     res.json({ success: true });
 });
@@ -179,10 +175,18 @@ app.post('/api/chat', requireAuth, async (req, res) => {
         res.setHeader('Connection', 'keep-alive');
 
         const reader = response.body.getReader();
+
+        // FIX: If user hits stop or disconnects, instantly abort the Nvidia request to save token costs
+        req.on('close', () => {
+            reader.cancel().catch(() => {});
+        });
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            res.write(value);
+            
+            // FIX: Ensure chunk is correctly formatted as a Buffer for Express writing
+            res.write(Buffer.from(value));
         }
         res.end();
     } catch (error) {
@@ -204,7 +208,7 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
     const ramPercent = Math.round(((totalRam - freeRam) / totalRam) * 100);
 
     res.json({
-        cpu: currentCpuLoad, ram: ramPercent, uptime: formatUptime(process.uptime()),
+        cpu: getCPULoad(), ram: ramPercent, uptime: formatUptime(process.uptime()),
         totalConversations: stats.totalConversations, totalMessages: stats.totalMessages,
         activeSessions: sessionActivity.size, maintenanceMode: isMaintenanceMode,
         logs: securityLogs, 
