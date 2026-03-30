@@ -671,19 +671,32 @@
     </div>
 
 <script>
-    // ========== TIMEZONE SYNC FIX ==========
+    // ========== TIMEZONE SYNC FIX (UPDATED FOR TIME-ONLY STRINGS) ==========
     function convertToLocalTime(serverTimeString) {
         if (!serverTimeString) return "Unknown Time";
-        let safeString = String(serverTimeString).includes('UTC') || String(serverTimeString).includes('Z') 
-            ? serverTimeString 
-            : serverTimeString + ' UTC';
+        
+        let safeString = String(serverTimeString);
+        
+        // If the backend only sends "7:19:13 AM", we need to attach a dummy date to it
+        // so the browser's Date object can calculate the timezone difference.
+        if (!safeString.includes('202') && safeString.includes(':')) {
+            // Get today's date in YYYY-MM-DD format
+            const dummyDate = new Date().toISOString().split('T')[0]; 
+            safeString = `${dummyDate} ${safeString}`;
+        }
+
+        // Add UTC if it doesn't already have a timezone attached
+        if (!safeString.includes('UTC') && !safeString.includes('Z')) {
+            safeString += ' UTC';
+        }
         
         const dateObj = new Date(safeString);
-        if (isNaN(dateObj)) return serverTimeString; // Fallback just in case parsing fails
         
-        return dateObj.toLocaleString(undefined, {
-            month: 'short',
-            day: '2-digit',
+        // Fallback if parsing fails
+        if (isNaN(dateObj)) return serverTimeString; 
+        
+        // Format it nicely back into a local 12-hour time string
+        return dateObj.toLocaleTimeString(undefined, {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
