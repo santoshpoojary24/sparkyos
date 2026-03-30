@@ -19,5 +19,15 @@
       "source": "/",
       "destination": "/in.html"
     }
+    {
+  "env": {
+    "TIMEZONE": "Asia/Kolkata"
+  },
+  "build": {
+    "env": {
+      "TIMEZONE": "Asia/Kolkata"
+    }
+  }
+}
   ]
 }
