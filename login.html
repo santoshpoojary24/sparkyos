@@ -339,7 +339,8 @@
                     submitBtn.style.background = '#4ade80';
                     submitBtn.style.borderColor = '#4ade80';
                     submitBtn.style.color = '#fff';
-                    setTimeout(() => window.location.href = '/', 600);
+                    // THIS LINE WAS FIXED TO PREVENT THE REDIRECT LOOP
+                    setTimeout(() => window.location.href = '/index.html', 600);
                 } else if (res.status === 504 || res.status === 502) {
                     triggerError('SYSTEM WAKING UP. PLEASE RETRY.');
                 } else {
